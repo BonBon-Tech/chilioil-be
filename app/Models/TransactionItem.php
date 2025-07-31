@@ -20,7 +20,8 @@ class TransactionItem extends Model
         'code',
         'price',
         'qty',
-        'total_price'
+        'total_price',
+        'note'
     ];
 
     protected $casts = [
@@ -49,4 +50,3 @@ class TransactionItem extends Model
         return $value ? url('storage/' . $value) : null;
     }
 }
-

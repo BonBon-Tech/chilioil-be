@@ -61,6 +61,7 @@ class TransactionRepository
         $transaction = Transaction::create([
             'code' => $data['code'],
             'date' => $data['date'],
+            'customer_name' => $data['customer_name'] ?? null,
             'type' => $data['type'],
             'payment_type' => $data['payment_type'],
             'status' => $data['status'],
@@ -82,7 +83,7 @@ class TransactionRepository
             return null;
         }
 
-        $updateData = array_intersect_key($data, array_flip(['date', 'type', 'payment_type', 'status']));
+        $updateData = array_intersect_key($data, array_flip(['date', 'customer_name', 'type', 'payment_type', 'status']));
         $transaction->update($updateData);
 
         if (isset($data['items'])) {
@@ -140,7 +141,8 @@ class TransactionRepository
                 'code' => $product->code,
                 'price' => $item['price'],
                 'qty' => $item['qty'],
-                'total_price' => $totalPrice
+                'total_price' => $totalPrice,
+                'note' => $item['note'] ?? null
             ]);
         }
     }

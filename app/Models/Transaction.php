@@ -14,6 +14,7 @@ class Transaction extends Model
     protected $fillable = [
         'code',
         'date',
+        'customer_name',
         'total',
         'sub_total',
         'total_item',
@@ -34,4 +35,3 @@ class Transaction extends Model
         return $this->hasMany(TransactionItem::class);
     }
 }
-

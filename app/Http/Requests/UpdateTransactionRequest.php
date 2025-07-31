@@ -15,14 +15,15 @@ class UpdateTransactionRequest extends FormRequest
     {
         return [
             'date' => 'sometimes|date',
+            'customer_name' => 'sometimes|nullable|string|max:255',
             'type' => 'sometimes|in:INTERNAL,OFFLINE,SHOPEEFOOD,GOFOOD,GRABFOOD',
             'payment_type' => 'sometimes|in:QRIS,CASH,GOPAY,SHOPEEPAY,OVO',
             'status' => 'sometimes|in:PAID,CANCELED',
             'items' => 'sometimes|array|min:1',
             'items.*.product_id' => 'required_with:items|exists:products,id',
             'items.*.qty' => 'required_with:items|integer|min:1',
-            'items.*.price' => 'required_with:items|numeric|min:0'
+            'items.*.price' => 'required_with:items|numeric|min:0',
+            'items.*.note' => 'nullable|string|max:500'
         ];
     }
 }
-
