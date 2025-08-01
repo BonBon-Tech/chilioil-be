@@ -13,9 +13,12 @@ class TransactionRepository
     {
         $query = Transaction::with(['transactionItems.product', 'transactionItems.store']);
 
-        // Search by code
+        // Search by code or customer name
         if (isset($filters['search'])) {
-            $query->where('code', 'like', '%' . $filters['search'] . '%');
+            $query->where(function($q) use ($filters) {
+                $q->where('code', 'like', '%' . $filters['search'] . '%')
+                  ->orWhere('customer_name', 'like', '%' . $filters['search'] . '%');
+            });
         }
 
         // Filter by code
@@ -23,12 +26,46 @@ class TransactionRepository
             $query->where('code', 'like', '%' . $filters['code'] . '%');
         }
 
-        // Filter by date range
-        if (isset($filters['date_from'])) {
-            $query->whereDate('date', '>=', $filters['date_from']);
+        // Filter by customer name
+        if (isset($filters['customer_name'])) {
+            $query->where('customer_name', 'like', '%' . $filters['customer_name'] . '%');
         }
-        if (isset($filters['date_to'])) {
-            $query->whereDate('date', '<=', $filters['date_to']);
+
+        // Filter by date (exact date)
+        if (isset($filters['date'])) {
+            $query->whereDate('date', $filters['date']);
+        }
+
+        // Filter by date range
+        if (isset($filters['start_date'])) {
+            $query->whereDate('date', '>=', $filters['start_date']);
+        }
+        if (isset($filters['from_date'])) {
+            $query->whereDate('date', '<=', $filters['from_date']);
+        }
+
+        // Filter by total amount range
+        if (isset($filters['total_min'])) {
+            $query->where('total', '>=', $filters['total_min']);
+        }
+        if (isset($filters['total_max'])) {
+            $query->where('total', '<=', $filters['total_max']);
+        }
+
+        // Filter by sub_total range
+        if (isset($filters['sub_total_min'])) {
+            $query->where('sub_total', '>=', $filters['sub_total_min']);
+        }
+        if (isset($filters['sub_total_max'])) {
+            $query->where('sub_total', '<=', $filters['sub_total_max']);
+        }
+
+        // Filter by total_item range
+        if (isset($filters['total_item_min'])) {
+            $query->where('total_item', '>=', $filters['total_item_min']);
+        }
+        if (isset($filters['total_item_max'])) {
+            $query->where('total_item', '<=', $filters['total_item_max']);
         }
 
         // Filter by type
