@@ -10,7 +10,6 @@
  */
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | JWT Authentication Secret
@@ -33,8 +32,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | The algorithm you are using, will determine whether your tokens are
-    | signed with a random string (defined in `JWT_SECRET`) or using the
-    | following public & private keys.
+    | signed with a random string (defined in config('app.key'))
+    | or using the following public & private keys.
     |
     | Symmetric Algorithms:
     | HS256, HS384 & HS512 will use `JWT_SECRET`.
@@ -45,15 +44,12 @@ return [
     */
 
     'keys' => [
-
         /*
         |--------------------------------------------------------------------------
         | Public Key
         |--------------------------------------------------------------------------
         |
         | A path or resource to your public key.
-        |
-        | E.g. 'file://path/to/public/key'
         |
         */
 
@@ -65,8 +61,6 @@ return [
         |--------------------------------------------------------------------------
         |
         | A path or resource to your private key.
-        |
-        | E.g. 'file://path/to/private/key'
         |
         */
 
@@ -82,7 +76,6 @@ return [
         */
 
         'passphrase' => env('JWT_PASSPHRASE'),
-
     ],
 
     /*
@@ -101,7 +94,7 @@ return [
     |
     */
 
-    'ttl' => env('JWT_TTL', 60),
+    'ttl' => 2880, // 2 days (2 * 24 * 60 minutes)
 
     /*
     |--------------------------------------------------------------------------
@@ -113,14 +106,14 @@ return [
     | the original token being created until they must re-authenticate.
     | Defaults to 2 weeks.
     |
-    | You can also set this to null, to yield an infinite refresh time.
-    | Some may want this instead of never expiring tokens for e.g. a mobile app.
+    | You can also set this to null, to yield a never expiring refresh token.
+    | Some may want this behaviour for e.g. a mobile app.
     | This is not particularly recommended, so make sure you have appropriate
     | systems in place to revoke the token if necessary.
     |
     */
 
-    'refresh_ttl' => env('JWT_REFRESH_TTL', 20160),
+    'refresh_ttl' => 20160,
 
     /*
     |--------------------------------------------------------------------------
@@ -131,7 +124,7 @@ return [
     |
     */
 
-    'algo' => env('JWT_ALGO', Tymon\JWTAuth\Providers\JWT\Provider::ALGO_HS256),
+    'algo' => env('JWT_ALGO', 'HS256'),
 
     /*
     |--------------------------------------------------------------------------
@@ -196,8 +189,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | This property gives the jwt timestamp claims some "leeway".
-    | Meaning that if you have any unavoidable slight clock skew on
-    | any of your servers then this will afford you some level of cushioning.
+    | Meaning that if you have any unavoidable clock skew on any of your
+    | servers then this will afford you some level of cushioning.
     |
     | This applies to the claims `iat`, `nbf` and `exp`.
     |
@@ -262,7 +255,6 @@ return [
     */
 
     'providers' => [
-
         /*
         |--------------------------------------------------------------------------
         | JWT Provider
@@ -295,7 +287,5 @@ return [
         */
 
         'storage' => Tymon\JWTAuth\Providers\Storage\Illuminate::class,
-
     ],
-
 ];
