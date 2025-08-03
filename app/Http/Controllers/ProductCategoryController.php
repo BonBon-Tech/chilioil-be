@@ -20,7 +20,8 @@ class ProductCategoryController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $categories = $this->categories->all($request->all());
+        $perPage = $request->get('per_page', 15);
+        $categories = $this->categories->paginate($perPage, $request->all());
         return ApiResponse::success($categories, 'Product category list fetched successfully');
     }
 

@@ -34,6 +34,33 @@ class ProductCategoryRepository
         return $query->get();
     }
 
+    public function paginate($perPage = 15, array $filters = [])
+    {
+        $query = ProductCategory::query();
+
+        // Search by name
+        if (isset($filters['search'])) {
+            $query->where('name', 'like', '%' . $filters['search'] . '%');
+        }
+
+        // Filter by name
+        if (isset($filters['name'])) {
+            $query->where('name', 'like', '%' . $filters['name'] . '%');
+        }
+
+        // Filter by slug
+        if (isset($filters['slug'])) {
+            $query->where('slug', $filters['slug']);
+        }
+
+        // Filter by status
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->paginate($perPage);
+    }
+
     public function find(int $id): ?ProductCategory
     {
         return ProductCategory::find($id);
