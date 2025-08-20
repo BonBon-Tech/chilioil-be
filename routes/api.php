@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\DashboardController;
 
 
 Route::prefix('/v1')->group(function () {
@@ -72,5 +73,9 @@ Route::prefix('/v1')->group(function () {
         Route::delete('expenses/{id}', [ExpenseController::class, 'destroy']);
 
         Route::apiResource('transactions', TransactionController::class);
+        Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+        Route::get('dashboard/product-sales', [DashboardController::class, 'productSales']);
+        Route::get('dashboard/store-sales', [DashboardController::class, 'storeSales']);
     });
+
 });
