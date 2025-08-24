@@ -4,12 +4,19 @@ namespace App\Repository;
 
 use App\Models\Transaction;
 use App\Models\Product;
+use App\Models\CashFlow;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Jobs\CreateCashFlowJob;
 
 class TransactionRepository
 {
-    public function paginate($perPage = 15, array $filters = [])
+    /**
+     * @param int $perPage
+     * @param array $filters
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function paginate(int $perPage = 15, array $filters = []): \Illuminate\Pagination\LengthAwarePaginator
     {
         $query = Transaction::with(['transactionItems.product', 'transactionItems.store']);
 
@@ -110,6 +117,9 @@ class TransactionRepository
         $this->createTransactionItems($transaction, $data['items']);
         $this->calculateTotals($transaction);
 
+        // Async cash flow creation per store
+        $this->dispatchCashFlowCreation($transaction);
+
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
     }
 
@@ -195,5 +205,30 @@ class TransactionRepository
             'total' => $subTotal, // You can add tax or discount logic here
             'total_item' => $totalItem
         ]);
+    }
+
+    /**
+     * Dispatch async job to create cash flow per store.
+     */
+    private function dispatchCashFlowCreation(Transaction $transaction): void
+    {
+        // Group items by store_id and sum total_price
+        $storeTotals = [];
+        foreach ($transaction->transactionItems as $item) {
+            $storeId = $item->store_id;
+            if (!isset($storeTotals[$storeId])) {
+                $storeTotals[$storeId] = 0;
+            }
+            $storeTotals[$storeId] += $item->total_price;
+        }
+
+        foreach ($storeTotals as $storeId => $amount) {
+            // Dispatch async job for cash flow creation
+            dispatch(new CreateCashFlowJob([
+                'type' => CashFlow::TYPE_INCOME,
+                'store_id' => $storeId,
+                'amount' => $amount,
+            ]));
+        }
     }
 }
