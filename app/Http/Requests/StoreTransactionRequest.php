@@ -23,7 +23,8 @@ class StoreTransactionRequest extends FormRequest
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.qty' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
-            'items.*.note' => 'nullable|string|max:500'
+            'items.*.note' => 'nullable|string|max:500',
+            'online_transaction_revenue' => 'nullable|numeric',
         ];
     }
 }

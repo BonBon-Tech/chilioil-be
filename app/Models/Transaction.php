@@ -20,18 +20,25 @@ class Transaction extends Model
         'total_item',
         'type',
         'payment_type',
-        'status'
+        'status',
+        'online_transaction_revenue',
     ];
 
     protected $casts = [
         'date' => 'date',
         'total' => 'decimal:2',
         'sub_total' => 'decimal:2',
-        'total_item' => 'integer'
+        'total_item' => 'integer',
+        'online_transaction_revenue' => 'decimal:2',
     ];
 
     public function transactionItems(): HasMany
     {
         return $this->hasMany(TransactionItem::class);
+    }
+
+    public function onlineTransactionDetails(): HasMany
+    {
+        return $this->hasMany(OnlineTransactionDetail::class, 'transaction_id');
     }
 }

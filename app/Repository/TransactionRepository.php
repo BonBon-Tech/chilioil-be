@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Models\Transaction;
 use App\Models\Product;
 use App\Models\CashFlow;
+use App\Models\OnlineTransactionDetail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\CreateCashFlowJob;
@@ -75,9 +76,14 @@ class TransactionRepository
             $query->where('total_item', '<=', $filters['total_item_max']);
         }
 
-        // Filter by type
+        // Filter by type (single)
         if (isset($filters['type'])) {
             $query->where('type', $filters['type']);
+        }
+
+        // Filter by types (array)
+        if (isset($filters['types']) && is_array($filters['types']) && count($filters['types']) > 0) {
+            $query->whereIn('type', $filters['types']);
         }
 
         // Filter by payment_type
@@ -116,6 +122,9 @@ class TransactionRepository
 
         $this->createTransactionItems($transaction, $data['items']);
         $this->calculateTotals($transaction);
+
+        // Dispatch async online transaction detail creation per store
+        $this->dispatchOnlineTransactionDetailCreation($transaction);
 
         // Async cash flow creation per store
         $this->dispatchCashFlowCreation($transaction);
@@ -229,6 +238,33 @@ class TransactionRepository
                 'store_id' => $storeId,
                 'amount' => $amount,
             ]));
+        }
+    }
+
+    /**
+     * Dispatch async job to create online transaction detail per store.
+     */
+    private function dispatchOnlineTransactionDetailCreation(Transaction $transaction): void
+    {
+        if (!in_array($transaction->type, ['SHOPEEFOOD', 'GOFOOD', 'GRABFOOD'])) {
+            return;
+        }
+
+        $storeRevenues = [];
+        foreach ($transaction->transactionItems as $item) {
+            $storeId = $item->store_id;
+            $revenue = $item->price * $item->qty;
+            if (!isset($storeRevenues[$storeId])) {
+                $storeRevenues[$storeId] = 0;
+            }
+            $storeRevenues[$storeId] += $revenue;
+        }
+        foreach ($storeRevenues as $storeId => $revenue) {
+            OnlineTransactionDetail::create([
+                'transaction_id' => $transaction->id,
+                'store_id' => $storeId,
+                'revenue' => $revenue,
+            ]);
         }
     }
 }
