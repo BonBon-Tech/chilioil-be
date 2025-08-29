@@ -9,7 +9,7 @@ class ExpenseRepository
 {
     public function getAll(): Collection
     {
-        return Expense::with('expenseCategory')->get();
+        return Expense::with('expenseCategory')->orderBy('date', 'desc')->get();
     }
 
     public function findById(int $id): ?Expense
