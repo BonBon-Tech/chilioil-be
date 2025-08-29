@@ -101,7 +101,7 @@ class TransactionRepository
 
     public function findById(int $id): ?Transaction
     {
-        return Transaction::with(['transactionItems.product', 'transactionItems.store'])->find($id);
+        return Transaction::with(['transactionItems.product', 'transactionItems.store', 'onlineTransactionDetails'])->find($id);
     }
 
     public function create(array $data): Transaction
@@ -117,7 +117,8 @@ class TransactionRepository
             'status' => $data['status'],
             'total' => 0,
             'sub_total' => 0,
-            'total_item' => 0
+            'total_item' => 0,
+            'online_transaction_revenue' => $data['online_transaction_revenue'] ?? 0
         ]);
 
         $this->createTransactionItems($transaction, $data['items']);
@@ -125,7 +126,6 @@ class TransactionRepository
 
         // Dispatch async online transaction detail creation per store
         $this->dispatchOnlineTransactionDetailCreation($transaction);
-
         // Async cash flow creation per store
         $this->dispatchCashFlowCreation($transaction);
 
@@ -147,6 +147,11 @@ class TransactionRepository
             $this->createTransactionItems($transaction, $data['items']);
             $this->calculateTotals($transaction);
         }
+
+        // Dispatch async online transaction detail creation per store
+        $this->dispatchOnlineTransactionDetailCreation($transaction);
+        // Async cash flow creation per store
+        $this->dispatchCashFlowCreation($transaction);
 
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
     }
@@ -221,14 +226,32 @@ class TransactionRepository
      */
     private function dispatchCashFlowCreation(Transaction $transaction): void
     {
-        // Group items by store_id and sum total_price
         $storeTotals = [];
-        foreach ($transaction->transactionItems as $item) {
-            $storeId = $item->store_id;
-            if (!isset($storeTotals[$storeId])) {
-                $storeTotals[$storeId] = 0;
+
+        if ($transaction->status !== 'PAID') {
+            return;
+        }
+
+        if ($transaction->type !== 'OFFLINE') {
+            $onlineTransactionDetails = OnlineTransactionDetail::query()->where('transaction_id', $transaction->id)->get();
+
+            foreach ($onlineTransactionDetails as $detail) {
+                $storeId = $detail->store_id;
+                if (!isset($storeTotals[$storeId])) {
+                    $storeTotals[$storeId] = 0;
+                }
+                $storeTotals[$storeId] += $detail->revenue;
             }
-            $storeTotals[$storeId] += $item->total_price;
+
+            return;
+        } else {
+            foreach ($transaction->transactionItems as $item) {
+                $storeId = $item->store_id;
+                if (!isset($storeTotals[$storeId])) {
+                    $storeTotals[$storeId] = 0;
+                }
+                $storeTotals[$storeId] += $item->total_price;
+            }
         }
 
         foreach ($storeTotals as $storeId => $amount) {
@@ -250,6 +273,10 @@ class TransactionRepository
             return;
         }
 
+        if ($transaction->status !== 'PAID') {
+            return;
+        }
+
         $storeRevenues = [];
         foreach ($transaction->transactionItems as $item) {
             $storeId = $item->store_id;
@@ -259,11 +286,15 @@ class TransactionRepository
             }
             $storeRevenues[$storeId] += $revenue;
         }
+
         foreach ($storeRevenues as $storeId => $revenue) {
+            $percentage = round(($revenue / $transaction->total) * 100);
+            $actualRevenue = round(($transaction->online_transaction_revenue * $percentage) / 100);
+
             OnlineTransactionDetail::create([
                 'transaction_id' => $transaction->id,
                 'store_id' => $storeId,
-                'revenue' => $revenue,
+                'revenue' => $actualRevenue,
             ]);
         }
     }

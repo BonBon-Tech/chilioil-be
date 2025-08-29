@@ -17,7 +17,7 @@ class UpdateTransactionRequest extends FormRequest
             'date' => 'sometimes|date',
             'customer_name' => 'sometimes|nullable|string|max:255',
             'type' => 'sometimes|in:INTERNAL,OFFLINE,SHOPEEFOOD,GOFOOD,GRABFOOD',
-            'payment_type' => 'sometimes|in:QRIS,CASH,GOPAY,SHOPEEPAY,OVO',
+            'payment_type' => 'sometimes|required|in:QRIS,CASH,GOPAY,SHOPEEPAY,OVO,BANK_TRANSFER',
             'status' => 'sometimes|in:PAID,CANCELED,PENDING',
             'items' => 'sometimes|array|min:1',
             'items.*.product_id' => 'required_with:items|exists:products,id',
