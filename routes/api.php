@@ -12,6 +12,7 @@ use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\WifiCredentialController;
 
 
 Route::prefix('/v1')->group(function () {
@@ -76,6 +77,10 @@ Route::prefix('/v1')->group(function () {
         Route::get('dashboard/summary', [DashboardController::class, 'summary']);
         Route::get('dashboard/product-sales', [DashboardController::class, 'productSales']);
         Route::get('dashboard/store-sales', [DashboardController::class, 'storeSales']);
-    });
+        Route::get('dashboard/store-online-sales', [DashboardController::class, 'storeOnlineSales']);
+        Route::get('dashboard/store-daily-online-sales', [DashboardController::class, 'storeDailyOnlineSales']);
+        Route::get('dashboard/store-daily-offline-sales', [DashboardController::class, 'storeDailyOfflineSales']);
 
+        Route::apiResource('wifi-credentials', WifiCredentialController::class);
+    });
 });

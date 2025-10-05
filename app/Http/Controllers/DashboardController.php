@@ -36,4 +36,24 @@ class DashboardController extends Controller
         $sales = $this->dashboardRepository->getStoreSales();
         return ApiResponse::success($sales, 'Store sales summary');
     }
+
+    public function storeOnlineSales(Request $request): JsonResponse
+    {
+        $sales = $this->dashboardRepository->getOnlineStoreSales();
+        return ApiResponse::success($sales, 'Store sales summary');
+    }
+
+    public function storeDailyOnlineSales(Request $request): JsonResponse
+    {
+        return ApiResponse::success([
+            'total' => $this->dashboardRepository->getDailyOnlineSales(),
+        ], 'Store sales summary');
+    }
+
+    public function storeDailyOfflineSales(Request $request): JsonResponse
+    {
+        return ApiResponse::success([
+            'total' => $this->dashboardRepository->getDailyOfflineSales(),
+        ], 'Store sales summary');
+    }
 }
