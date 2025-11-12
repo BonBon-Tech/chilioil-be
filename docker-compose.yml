@@ -1,0 +1,44 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_XDEBUG: ${INSTALL_XDEBUG:-false}
+    container_name: chilioil-php
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chilioil-queue
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+    networks:
+      - dev-network
+
+networks:
+  dev-network:
+    external: true
