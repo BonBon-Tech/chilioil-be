@@ -18,9 +18,10 @@ class UserController extends Controller
         $this->users = $users;
     }
 
-    public function index(): \Illuminate\Http\JsonResponse
+    public function index(Request $request): \Illuminate\Http\JsonResponse
     {
-        $users = $this->users->all();
+        $perPage = $request->get('per_page', 15);
+        $users = $this->users->paginate($perPage);
         return ApiResponse::success($users, 'User list fetched successfully');
     }
 

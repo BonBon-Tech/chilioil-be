@@ -12,6 +12,17 @@ class ExpenseRepository
         return Expense::with('expenseCategory')->orderBy('date', 'desc')->get();
     }
 
+    public function paginate(int $perPage = 15, array $filters = []): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        $query = Expense::with('expenseCategory')->orderBy('date', 'desc');
+
+        if (isset($filters['search'])) {
+            $query->where('description', 'like', '%' . $filters['search'] . '%');
+        }
+
+        return $query->paginate($perPage);
+    }
+
     public function findById(int $id): ?Expense
     {
         return Expense::with('expenseCategory')->find($id);

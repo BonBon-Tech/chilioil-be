@@ -7,6 +7,7 @@ use App\Http\Requests\StoreExpenseRequest;
 use App\Http\Requests\UpdateExpenseRequest;
 use App\Repository\ExpenseRepository;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ExpenseController extends Controller
 {
@@ -17,9 +18,10 @@ class ExpenseController extends Controller
         $this->expenseRepository = $expenseRepository;
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $expenses = $this->expenseRepository->getAll();
+        $perPage = $request->get('per_page', 15);
+        $expenses = $this->expenseRepository->paginate($perPage, $request->all());
         return ApiResponse::success($expenses, 'Expenses retrieved successfully');
     }
 

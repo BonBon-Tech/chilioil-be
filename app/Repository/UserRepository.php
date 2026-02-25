@@ -11,6 +11,11 @@ class UserRepository
         return User::with('role')->get();
     }
 
+    public function paginate(int $perPage = 15)
+    {
+        return User::with('role')->paginate($perPage);
+    }
+
     public function find($id)
     {
         return User::with('role')->findOrFail($id);

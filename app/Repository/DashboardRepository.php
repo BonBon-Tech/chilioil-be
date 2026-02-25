@@ -13,14 +13,24 @@ use Carbon\Carbon;
 
 class DashboardRepository
 {
-    public function getSummary(): array
+    public function getSummary(?string $startDate = null, ?string $endDate = null): array
     {
+        $transactionQuery = Transaction::query();
+        $onlineQuery = Transaction::query();
+        $expenseQuery = Expense::query();
+
+        if ($startDate && $endDate) {
+            $transactionQuery->whereBetween('date', [$startDate, $endDate]);
+            $onlineQuery->whereBetween('date', [$startDate, $endDate]);
+            $expenseQuery->whereBetween('date', [$startDate, $endDate]);
+        }
+
         return [
             'product_count' => Product::count(),
             'user_count' => User::count(),
-            'transaction_total' => (float) Transaction::where('type', '=', 'offline')->where('status', '=', 'PAID')->sum('total'),
-            'online_transaction_total' => (float) Transaction::where('type', '!=', 'offline')->sum('online_transaction_revenue'),
-            'expense_total' => (float) Expense::sum('amount'),
+            'transaction_total' => (float) (clone $transactionQuery)->where('type', '=', 'offline')->where('status', '=', 'PAID')->sum('total'),
+            'online_transaction_total' => (float) (clone $onlineQuery)->where('type', '!=', 'offline')->sum('online_transaction_revenue'),
+            'expense_total' => (float) $expenseQuery->sum('amount'),
         ];
     }
 
@@ -51,15 +61,15 @@ class DashboardRepository
 
     /**
      * Get sales summary per store, including stores with no transactions.
-     *
-     * @return array
      */
-    public function getStoreSales(): array
+    public function getStoreSales(?string $startDate = null, ?string $endDate = null): array
     {
-        // Get sales data for stores with transactions
-        $sales = TransactionItem::selectRaw('store_id, SUM(qty) as total_qty, SUM(total_price) as total_sales')
-            ->whereHas('transaction', function ($q) {
+        $query = TransactionItem::selectRaw('store_id, SUM(qty) as total_qty, SUM(total_price) as total_sales')
+            ->whereHas('transaction', function ($q) use ($startDate, $endDate) {
                 $q->where('type', 'offline')->where('status', 'PAID');
+                if ($startDate && $endDate) {
+                    $q->whereBetween('date', [$startDate, $endDate]);
+                }
             })
             ->groupBy('store_id')
             ->with('store')
@@ -67,12 +77,10 @@ class DashboardRepository
             ->get()
             ->keyBy('store_id');
 
-        // Get all stores
         $stores = Store::all();
 
-        // Map all stores, filling in zeroes for those without sales
-        $result = $stores->map(function ($store) use ($sales) {
-            $sale = $sales->get($store->id);
+        $result = $stores->map(function ($store) use ($query) {
+            $sale = $query->get($store->id);
             return [
                 'store_id' => $store->id,
                 'store_name' => $store->name,
@@ -81,23 +89,20 @@ class DashboardRepository
             ];
         });
 
-        // Sort by total_sales desc
-        $result = $result->sortByDesc('total_sales')->values()->toArray();
-
-        return $result;
+        return $result->sortByDesc('total_sales')->values()->toArray();
     }
 
     /**
-     * Get sales summary per store, including stores with no transactions.
-     *
-     * @return array
+     * Get online sales summary per store.
      */
-    public function getOnlineStoreSales(): array
+    public function getOnlineStoreSales(?string $startDate = null, ?string $endDate = null): array
     {
-        // Get sales data for stores with transactions
         $sales = OnlineTransactionDetail::selectRaw('store_id, SUM(revenue) as total_sales')
-            ->whereHas('transaction', function ($q) {
-                $q->where('type', '!=','offline')->where('status', 'PAID');
+            ->whereHas('transaction', function ($q) use ($startDate, $endDate) {
+                $q->where('type', '!=', 'offline')->where('status', 'PAID');
+                if ($startDate && $endDate) {
+                    $q->whereBetween('date', [$startDate, $endDate]);
+                }
             })
             ->groupBy('store_id')
             ->with('store')
@@ -105,41 +110,95 @@ class DashboardRepository
             ->get()
             ->keyBy('store_id');
 
-        // Get all stores
         $stores = Store::all();
 
-        // Map all stores, filling in zeroes for those without sales
         $result = $stores->map(function ($store) use ($sales) {
             $sale = $sales->get($store->id);
             return [
                 'store_id' => $store->id,
                 'store_name' => $store->name,
-                'total_qty' => $sale ? (int) $sale->total_qty : 0,
+                'total_qty' => $sale ? (int) ($sale->total_qty ?? 0) : 0,
                 'total_sales' => $sale ? (float) $sale->total_sales : 0.0,
             ];
         });
 
-        // Sort by total_sales desc
-        $result = $result->sortByDesc('total_sales')->values()->toArray();
-
-        return $result;
+        return $result->sortByDesc('total_sales')->values()->toArray();
     }
 
-    public function getDailyOfflineSales(): float
+    public function getDailyOfflineSales(?string $startDate = null, ?string $endDate = null): float
     {
-        return (float) Transaction::query()
+        $query = Transaction::query()
             ->where('type', '=', 'offline')
-            ->where('status', '=', 'PAID')
-            ->whereDate('date', Carbon::now('Asia/Jakarta')->format('Y-m-d'))
-            ->sum('total');
+            ->where('status', '=', 'PAID');
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('date', [$startDate, $endDate]);
+        } else {
+            $query->whereDate('date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
+        }
+
+        return (float) $query->sum('total');
     }
 
-    public function getDailyOnlineSales(): float
+    public function getDailyOnlineSales(?string $startDate = null, ?string $endDate = null): float
     {
-        return (float) Transaction::query()
+        $query = Transaction::query()
             ->where('type', '!=', 'offline')
-            ->where('status', '=', 'PAID')
-            ->whereDate('date', Carbon::now('Asia/Jakarta')->format('Y-m-d'))
-            ->sum('online_transaction_revenue');
+            ->where('status', '=', 'PAID');
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('date', [$startDate, $endDate]);
+        } else {
+            $query->whereDate('date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
+        }
+
+        return (float) $query->sum('online_transaction_revenue');
+    }
+
+    /**
+     * Get weekly sales traffic (per-day totals).
+     */
+    public function getWeeklyTraffic(string $startDate, string $endDate): array
+    {
+        $results = Transaction::selectRaw('DATE(date) as date, SUM(total) as total_sales, COUNT(*) as total_transactions')
+            ->where('status', 'PAID')
+            ->whereBetween('date', [$startDate, $endDate])
+            ->groupByRaw('DATE(date)')
+            ->orderBy('date')
+            ->get();
+
+        return $results->map(function ($row) {
+            return [
+                'date' => $row->date,
+                'total_sales' => (float) $row->total_sales,
+                'total_transactions' => (int) $row->total_transactions,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get top products by qty sold.
+     */
+    public function getTopProducts(string $startDate, string $endDate, int $limit = 10): array
+    {
+        $results = TransactionItem::selectRaw('product_id, SUM(qty) as total_qty, SUM(total_price) as total_sales')
+            ->whereHas('transaction', function ($q) use ($startDate, $endDate) {
+                $q->where('status', 'PAID')->whereBetween('date', [$startDate, $endDate]);
+            })
+            ->with('product')
+            ->groupBy('product_id')
+            ->orderByDesc('total_qty')
+            ->limit($limit)
+            ->get();
+
+        return $results->map(function ($row) {
+            return [
+                'product_id' => $row->product_id,
+                'product_name' => $row->product?->name ?? 'Unknown',
+                'image_url' => $row->product?->image_url,
+                'total_qty' => (int) $row->total_qty,
+                'total_sales' => (float) $row->total_sales,
+            ];
+        })->toArray();
     }
 }

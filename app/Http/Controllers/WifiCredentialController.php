@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreWifiCredentialRequest;
 use App\Http\Requests\UpdateWifiCredentialRequest;
@@ -23,41 +24,41 @@ class WifiCredentialController extends Controller
     {
         $perPage = $request->input('per_page', 15);
         $data = $this->repository->paginate($perPage);
-        return response()->json($data);
+        return ApiResponse::success($data, 'WiFi credentials fetched');
     }
 
     public function show(int $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {
-            return response()->json(['message' => 'Not found'], 404);
+            return ApiResponse::error('Not found', null, 404);
         }
-        return response()->json($wifiCredential);
+        return ApiResponse::success($wifiCredential, 'WiFi credential fetched');
     }
 
     public function store(StoreWifiCredentialRequest $request): JsonResponse
     {
         $wifiCredential = $this->repository->create($request->validated());
-        return response()->json($wifiCredential, 201);
+        return ApiResponse::success($wifiCredential, 'WiFi credential created', 201);
     }
 
     public function update(UpdateWifiCredentialRequest $request, int $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {
-            return response()->json(['message' => 'Not found'], 404);
+            return ApiResponse::error('Not found', null, 404);
         }
         $wifiCredential = $this->repository->update($wifiCredential, $request->validated());
-        return response()->json($wifiCredential);
+        return ApiResponse::success($wifiCredential, 'WiFi credential updated');
     }
 
     public function destroy(int $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {
-            return response()->json(['message' => 'Not found'], 404);
+            return ApiResponse::error('Not found', null, 404);
         }
         $this->repository->delete($wifiCredential);
-        return response()->json(['message' => 'Deleted successfully']);
+        return ApiResponse::success(null, 'Deleted successfully');
     }
 }
