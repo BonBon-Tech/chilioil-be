@@ -13,7 +13,8 @@ class Store extends Model
     protected $fillable = [
         'name',
         'logo',
-        'slug'
+        'slug',
+        'company_id',
     ];
 
     protected $appends = ['logo_url'];
@@ -21,5 +22,10 @@ class Store extends Model
     public function getLogoUrlAttribute(): ?string
     {
         return $this->logo ? url(Storage::url($this->logo)) : null;
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

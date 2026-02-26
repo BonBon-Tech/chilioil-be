@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Helpers\ApiResponse;
 use App\Http\Requests\StoreExpenseRequest;
 use App\Http\Requests\UpdateExpenseRequest;
+use App\Models\Expense;
 use App\Repository\ExpenseRepository;
+use App\Traits\CheckDemoLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ExpenseController extends Controller
 {
+    use CheckDemoLimit;
     private ExpenseRepository $expenseRepository;
 
     public function __construct(ExpenseRepository $expenseRepository)
@@ -27,6 +30,9 @@ class ExpenseController extends Controller
 
     public function store(StoreExpenseRequest $request): JsonResponse
     {
+        $demoCheck = $this->checkDemoLimit(Expense::class, 10);
+        if ($demoCheck) return $demoCheck;
+
         $expense = $this->expenseRepository->create($request->validated());
         return ApiResponse::success($expense, 'Expense created successfully');
     }

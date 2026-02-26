@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'jwt' => \App\Http\Middleware\JwtMiddleware::class,
             'admin' => \App\Http\Middleware\AdminOnly::class,
             'cors' => \App\Http\Middleware\Cors::class,
+            'company.scope' => \App\Http\Middleware\CompanyScope::class,
+            'check.plan' => \App\Http\Middleware\CheckPlan::class,
+            'owner' => \App\Http\Middleware\OwnerOnly::class,
         ]);
 
         $middleware->append(\App\Http\Middleware\Cors::class);

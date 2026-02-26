@@ -13,8 +13,14 @@ class ExpenseCategory extends Model
     protected $fillable = [
         'name',
         'code',
+        'company_id',
     ];
 
     protected $dates = ['deleted_at'];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }
 

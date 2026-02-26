@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Helpers\ApiResponse;
 use App\Http\Requests\StoreExpenseCategoryRequest;
 use App\Http\Requests\UpdateExpenseCategoryRequest;
+use App\Models\ExpenseCategory;
 use App\Repository\ExpenseCategoryRepository;
+use App\Traits\CheckDemoLimit;
 use Illuminate\Http\JsonResponse;
 
 class ExpenseCategoryController extends Controller
 {
+    use CheckDemoLimit;
     private ExpenseCategoryRepository $expenseCategoryRepository;
 
     public function __construct(ExpenseCategoryRepository $expenseCategoryRepository)
@@ -25,6 +28,9 @@ class ExpenseCategoryController extends Controller
 
     public function store(StoreExpenseCategoryRequest $request): JsonResponse
     {
+        $demoCheck = $this->checkDemoLimit(ExpenseCategory::class, 2);
+        if ($demoCheck) return $demoCheck;
+
         $expenseCategory = $this->expenseCategoryRepository->create($request->validated());
         return ApiResponse::success($expenseCategory, 'Expense category created successfully');
     }

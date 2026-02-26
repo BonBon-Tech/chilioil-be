@@ -7,11 +7,31 @@ use App\Models\Product;
 use App\Models\CashFlow;
 use App\Models\OnlineTransactionDetail;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\CreateCashFlowJob;
 
 class TransactionRepository
 {
+    private function getCompanyId(): ?int
+    {
+        $user = Auth::user();
+        if ($user && $user->role && $user->role->name === 'owner') {
+            return null;
+        }
+        return $user?->company_id;
+    }
+
+    private function scopedQuery()
+    {
+        $query = Transaction::with(['transactionItems.product', 'transactionItems.store']);
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
     /**
      * @param int $perPage
      * @param array $filters
@@ -19,7 +39,7 @@ class TransactionRepository
      */
     public function paginate(int $perPage = 15, array $filters = []): \Illuminate\Pagination\LengthAwarePaginator
     {
-        $query = Transaction::with(['transactionItems.product', 'transactionItems.store']);
+        $query = $this->scopedQuery();
 
         // Search by code or customer name
         if (isset($filters['search'])) {
@@ -29,22 +49,18 @@ class TransactionRepository
             });
         }
 
-        // Filter by code
         if (isset($filters['code'])) {
             $query->where('code', 'like', '%' . $filters['code'] . '%');
         }
 
-        // Filter by customer name
         if (isset($filters['customer_name'])) {
             $query->where('customer_name', 'like', '%' . $filters['customer_name'] . '%');
         }
 
-        // Filter by date (exact date)
         if (isset($filters['date'])) {
             $query->whereDate('date', $filters['date']);
         }
 
-        // Filter by date range
         if (isset($filters['start_date'])) {
             $query->whereDate('date', '>=', $filters['start_date']);
         }
@@ -52,7 +68,6 @@ class TransactionRepository
             $query->whereDate('date', '<=', $filters['from_date']);
         }
 
-        // Filter by total amount range
         if (isset($filters['total_min'])) {
             $query->where('total', '>=', $filters['total_min']);
         }
@@ -60,7 +75,6 @@ class TransactionRepository
             $query->where('total', '<=', $filters['total_max']);
         }
 
-        // Filter by sub_total range
         if (isset($filters['sub_total_min'])) {
             $query->where('sub_total', '>=', $filters['sub_total_min']);
         }
@@ -68,7 +82,6 @@ class TransactionRepository
             $query->where('sub_total', '<=', $filters['sub_total_max']);
         }
 
-        // Filter by total_item range
         if (isset($filters['total_item_min'])) {
             $query->where('total_item', '>=', $filters['total_item_min']);
         }
@@ -76,22 +89,18 @@ class TransactionRepository
             $query->where('total_item', '<=', $filters['total_item_max']);
         }
 
-        // Filter by type (single)
         if (isset($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
-        // Filter by types (array)
         if (isset($filters['types']) && is_array($filters['types']) && count($filters['types']) > 0) {
             $query->whereIn('type', $filters['types']);
         }
 
-        // Filter by payment_type
         if (isset($filters['payment_type'])) {
             $query->where('payment_type', $filters['payment_type']);
         }
 
-        // Filter by status
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -101,15 +110,19 @@ class TransactionRepository
 
     public function findById(int $id): ?Transaction
     {
-        return Transaction::with(['transactionItems.product', 'transactionItems.store', 'onlineTransactionDetails'])->find($id);
+        return $this->scopedQuery()
+            ->with('onlineTransactionDetails')
+            ->find($id);
     }
 
     public function create(array $data): Transaction
     {
         $data['code'] = $this->generateTransactionCode($data['date']);
+        $companyId = Auth::user()->company_id;
 
         $transaction = Transaction::create([
             'code' => $data['code'],
+            'company_id' => $companyId,
             'date' => $data['date'],
             'customer_name' => $data['customer_name'] ?? null,
             'type' => $data['type'],
@@ -124,9 +137,7 @@ class TransactionRepository
         $this->createTransactionItems($transaction, $data['items']);
         $this->calculateTotals($transaction);
 
-        // Dispatch async online transaction detail creation per store
         $this->dispatchOnlineTransactionDetailCreation($transaction);
-        // Async cash flow creation per store
         $this->dispatchCashFlowCreation($transaction);
 
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
@@ -134,7 +145,7 @@ class TransactionRepository
 
     public function update(int $id, array $data): ?Transaction
     {
-        $transaction = Transaction::find($id);
+        $transaction = $this->scopedQuery()->find($id);
         if (!$transaction) {
             return null;
         }
@@ -148,9 +159,7 @@ class TransactionRepository
             $this->calculateTotals($transaction);
         }
 
-        // Dispatch async online transaction detail creation per store
         $this->dispatchOnlineTransactionDetailCreation($transaction);
-        // Async cash flow creation per store
         $this->dispatchCashFlowCreation($transaction);
 
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
@@ -158,7 +167,7 @@ class TransactionRepository
 
     public function delete(int $id): bool
     {
-        $transaction = Transaction::find($id);
+        $transaction = $this->scopedQuery()->find($id);
         if (!$transaction) {
             return false;
         }
@@ -216,14 +225,11 @@ class TransactionRepository
 
         $transaction->update([
             'sub_total' => $subTotal,
-            'total' => $subTotal, // You can add tax or discount logic here
+            'total' => $subTotal,
             'total_item' => $totalItem
         ]);
     }
 
-    /**
-     * Dispatch async job to create cash flow per store.
-     */
     private function dispatchCashFlowCreation(Transaction $transaction): void
     {
         $storeTotals = [];
@@ -255,7 +261,6 @@ class TransactionRepository
         }
 
         foreach ($storeTotals as $storeId => $amount) {
-            // Dispatch async job for cash flow creation
             dispatch(new CreateCashFlowJob([
                 'type' => CashFlow::TYPE_INCOME,
                 'store_id' => $storeId,
@@ -264,9 +269,6 @@ class TransactionRepository
         }
     }
 
-    /**
-     * Dispatch async job to create online transaction detail per store.
-     */
     private function dispatchOnlineTransactionDetailCreation(Transaction $transaction): void
     {
         if (!in_array($transaction->type, ['SHOPEEFOOD', 'GOFOOD', 'GRABFOOD'])) {

@@ -13,6 +13,7 @@ class Expense extends Model
 
     protected $fillable = [
         'expense_category_id',
+        'company_id',
         'date',
         'amount',
         'reference',
@@ -29,6 +30,11 @@ class Expense extends Model
     public function expenseCategory(): BelongsTo
     {
         return $this->belongsTo(ExpenseCategory::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 }
 

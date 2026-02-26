@@ -5,26 +5,47 @@ namespace App\Repository;
 use App\Models\WifiCredential;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
 
 class WifiCredentialRepository
 {
+    private function getCompanyId(): ?int
+    {
+        $user = Auth::user();
+        if ($user && $user->role && $user->role->name === 'owner') {
+            return null;
+        }
+        return $user?->company_id;
+    }
+
+    private function scopedQuery()
+    {
+        $query = WifiCredential::query();
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
     public function all(): Collection
     {
-        return WifiCredential::with([])->orderBy('is_active', 'desc')->get(); // Add relations in with([]) if any
+        return $this->scopedQuery()->orderBy('is_active', 'desc')->get();
     }
 
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return WifiCredential::with([])->orderBy('is_active', 'desc')->paginate($perPage);
+        return $this->scopedQuery()->orderBy('is_active', 'desc')->paginate($perPage);
     }
 
     public function find(int $id): ?WifiCredential
     {
-        return WifiCredential::with([])->find($id);
+        return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): WifiCredential
     {
+        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
         return WifiCredential::create($data);
     }
 

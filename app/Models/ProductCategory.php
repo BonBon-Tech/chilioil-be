@@ -15,6 +15,7 @@ class ProductCategory extends Model
         'slug',
         'logo',
         'status',
+        'company_id',
     ];
 
     protected $appends = ['logo_url'];
@@ -22,5 +23,10 @@ class ProductCategory extends Model
     public function getLogoUrlAttribute(): ?string
     {
         return $this->logo ? url(Storage::url($this->logo)) : null;
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
     }
 }

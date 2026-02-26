@@ -3,50 +3,63 @@
 namespace App\Repository;
 
 use App\Models\Product;
-use Illuminate\Http\UploadedFile;
+use App\Models\Store;
+use Illuminate\Support\Facades\Auth;
 
 class ProductRepository
 {
+    private function getCompanyId(): ?int
+    {
+        $user = Auth::user();
+        if ($user && $user->role && $user->role->name === 'owner') {
+            return null;
+        }
+        return $user?->company_id;
+    }
+
+    private function scopedQuery()
+    {
+        $query = Product::with(['store', 'productCategory']);
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->whereHas('store', fn($q) => $q->where('company_id', $companyId));
+        }
+        return $query;
+    }
+
     public function all(): \Illuminate\Database\Eloquent\Collection
     {
-        return Product::with(['store', 'productCategory'])->get();
+        return $this->scopedQuery()->get();
     }
 
     public function paginate($perPage = 15, array $filters = [])
     {
-        $query = Product::with(['store', 'productCategory']);
+        $query = $this->scopedQuery();
 
-        // Search by name
         if (isset($filters['search'])) {
             $query->where('name', 'like', '%' . $filters['search'] . '%');
         }
 
-        // Filter by name
         if (isset($filters['name'])) {
             $query->where('name', 'like', '%' . $filters['name'] . '%');
         }
 
-        // Filter by code
         if (isset($filters['code'])) {
             $query->where('code', 'like', '%' . $filters['code'] . '%');
         }
 
-        // Filter by store_id
         if (isset($filters['store_id'])) {
             $query->where('store_id', $filters['store_id']);
         }
 
-        // Filter by product_category_id
         if (isset($filters['product_category_id'])) {
             $query->where('product_category_id', $filters['product_category_id']);
         }
 
-        // Filter by selling_type
         if (isset($filters['selling_type'])) {
             $query->where('selling_type', $filters['selling_type']);
         }
 
-        // Filter by price range
         if (isset($filters['price_min'])) {
             $query->where('price', '>=', $filters['price_min']);
         }
@@ -54,7 +67,6 @@ class ProductRepository
             $query->where('price', '<=', $filters['price_max']);
         }
 
-        // Filter by status
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
@@ -64,7 +76,7 @@ class ProductRepository
 
     public function find(int $id): ?Product
     {
-        return Product::with(['store', 'productCategory'])->find($id);
+        return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): Product
@@ -74,7 +86,7 @@ class ProductRepository
 
     public function update(int $id, array $data): ?Product
     {
-        $product = Product::find($id);
+        $product = $this->scopedQuery()->find($id);
         if (!$product) {
             return null;
         }
@@ -84,6 +96,10 @@ class ProductRepository
 
     public function delete(int $id): bool
     {
-        return Product::destroy($id) > 0;
+        $product = $this->scopedQuery()->find($id);
+        if (!$product) {
+            return false;
+        }
+        return $product->delete();
     }
 }

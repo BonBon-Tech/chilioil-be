@@ -3,29 +3,48 @@
 namespace App\Repository;
 
 use App\Models\Store;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class StoreRepository
 {
+    private function getCompanyId(): ?int
+    {
+        $user = Auth::user();
+        if ($user && $user->role && $user->role->name === 'owner') {
+            return null;
+        }
+        return $user?->company_id;
+    }
+
+    private function scopedQuery()
+    {
+        $query = Store::query();
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        return $query;
+    }
+
     public function all(): \Illuminate\Database\Eloquent\Collection
     {
-        return Store::all();
+        return $this->scopedQuery()->get();
     }
 
     public function find(int $id): ?Store
     {
-        return Store::find($id);
+        return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): Store
     {
+        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
         return Store::create($data);
     }
 
     public function update(int $id, array $data): ?Store
     {
-        $store = Store::find($id);
+        $store = $this->scopedQuery()->find($id);
         if (!$store) {
             return null;
         }
@@ -35,7 +54,10 @@ class StoreRepository
 
     public function delete(int $id): bool
     {
-        return Store::destroy($id) > 0;
+        $store = $this->scopedQuery()->find($id);
+        if (!$store) {
+            return false;
+        }
+        return $store->delete();
     }
 }
-

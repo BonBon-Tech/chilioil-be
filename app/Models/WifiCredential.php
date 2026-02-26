@@ -9,5 +9,11 @@ class WifiCredential extends Model
     protected $fillable = [
         'code',
         'is_active',
+        'company_id',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 }

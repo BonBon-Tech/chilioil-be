@@ -8,6 +8,7 @@ use App\Helpers\ApiResponse;
 use App\Repository\DashboardRepository;
 use App\Http\Resources\ProductSalesResource;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -23,6 +24,13 @@ class DashboardController extends Controller
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
         $data = $this->dashboardRepository->getSummary($startDate, $endDate);
+
+        // Basic plan: hide online transaction total
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            $data['online_transaction_total'] = 0;
+        }
+
         return ApiResponse::success($data, 'Dashboard summary');
     }
 
@@ -44,6 +52,12 @@ class DashboardController extends Controller
 
     public function storeOnlineSales(Request $request): JsonResponse
     {
+        // Basic plan: return empty
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            return ApiResponse::success([], 'Store online sales summary');
+        }
+
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
         $sales = $this->dashboardRepository->getOnlineStoreSales($startDate, $endDate);
@@ -52,6 +66,12 @@ class DashboardController extends Controller
 
     public function storeDailyOnlineSales(Request $request): JsonResponse
     {
+        // Basic plan: return 0
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            return ApiResponse::success(['total' => 0], 'Store sales summary');
+        }
+
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
         return ApiResponse::success([

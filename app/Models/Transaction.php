@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transaction extends Model
@@ -13,6 +14,7 @@ class Transaction extends Model
 
     protected $fillable = [
         'code',
+        'company_id',
         'date',
         'customer_name',
         'total',
@@ -40,5 +42,10 @@ class Transaction extends Model
     public function onlineTransactionDetails(): HasMany
     {
         return $this->hasMany(OnlineTransactionDetail::class, 'transaction_id');
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 }

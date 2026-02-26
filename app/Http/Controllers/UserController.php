@@ -8,9 +8,11 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Repository\UserRepository;
 use App\Helpers\ApiResponse;
+use App\Traits\CheckDemoLimit;
 
 class UserController extends Controller
 {
+    use CheckDemoLimit;
     protected UserRepository $users;
 
     public function __construct(UserRepository $users)
@@ -27,6 +29,9 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): \Illuminate\Http\JsonResponse
     {
+        $demoCheck = $this->checkDemoLimit(User::class, 2);
+        if ($demoCheck) return $demoCheck;
+
         $validated = $request->validated();
         $validated['password'] = bcrypt($validated['password']);
         $user = $this->users->create($validated);
