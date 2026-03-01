@@ -2,25 +2,19 @@
 
 namespace App\Repository;
 
-use App\Models\Transaction;
-use App\Models\Product;
+use App\Helpers\JwtClaims;
+use App\Jobs\CreateCashFlowJob;
 use App\Models\CashFlow;
 use App\Models\OnlineTransactionDetail;
+use App\Models\Product;
+use App\Models\Transaction;
+use App\Traits\UsesCompanyScope;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Jobs\CreateCashFlowJob;
 
 class TransactionRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -105,10 +99,14 @@ class TransactionRepository
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['store_id'])) {
+            $query->where('store_id', $filters['store_id']);
+        }
+
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
-    public function findById(int $id): ?Transaction
+    public function findById(string $id): ?Transaction
     {
         return $this->scopedQuery()
             ->with('onlineTransactionDetails')
@@ -118,7 +116,7 @@ class TransactionRepository
     public function create(array $data): Transaction
     {
         $data['code'] = $this->generateTransactionCode($data['date']);
-        $companyId = Auth::user()->company_id;
+        $companyId = JwtClaims::companyId();
 
         $transaction = Transaction::create([
             'code' => $data['code'],
@@ -143,7 +141,7 @@ class TransactionRepository
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
     }
 
-    public function update(int $id, array $data): ?Transaction
+    public function update(string $id, array $data): ?Transaction
     {
         $transaction = $this->scopedQuery()->find($id);
         if (!$transaction) {
@@ -165,7 +163,7 @@ class TransactionRepository
         return $transaction->load(['transactionItems.product', 'transactionItems.store']);
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
         $transaction = $this->scopedQuery()->find($id);
         if (!$transaction) {

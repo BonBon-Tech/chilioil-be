@@ -20,7 +20,7 @@ return new class extends Migration
     {
         foreach ($this->tables as $table) {
             Schema::table($table, function (Blueprint $blueprint) {
-                $blueprint->unsignedBigInteger('company_id')->nullable()->after('id');
+                $blueprint->uuid('company_id')->nullable()->after('id');
                 $blueprint->foreign('company_id')->references('id')->on('companies')->nullOnDelete();
                 $blueprint->index('company_id');
             });

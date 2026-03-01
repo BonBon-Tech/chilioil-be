@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ApiResponse;
+use App\Models\Company;
 use App\Repository\InvitationCodeRepository;
+use Illuminate\Http\Request;
 
 class InvitationCodeController extends Controller
 {
@@ -20,13 +22,16 @@ class InvitationCodeController extends Controller
         return ApiResponse::success($codes, 'Invitation codes fetched');
     }
 
-    public function generate(): \Illuminate\Http\JsonResponse
+    public function generate(Request $request): \Illuminate\Http\JsonResponse
     {
-        $code = $this->repo->generate();
+        $validated = $request->validate([
+            'plan' => 'required|in:basic,pro,custom',
+        ]);
+        $code = $this->repo->generate($validated['plan']);
         return ApiResponse::success($code, 'Invitation code generated');
     }
 
-    public function destroy(int $id): \Illuminate\Http\JsonResponse
+    public function destroy(string $id): \Illuminate\Http\JsonResponse
     {
         $deleted = $this->repo->delete($id);
 

@@ -3,7 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use App\Models\Feature;
+use App\Models\PlanFeature;
 
 class FeatureSeeder extends Seeder
 {
@@ -27,12 +28,11 @@ class FeatureSeeder extends Seeder
             ['slug' => 'export-transaction', 'name' => 'Export Transaksi', 'route' => '/export-transaction', 'icon' => 'download', 'group' => 'transaksi', 'sort_order' => 15],
         ];
 
-        $now = now();
-
-        foreach ($features as $feature) {
-            DB::table('features')->updateOrInsert(
-                ['slug' => $feature['slug']],
-                array_merge($feature, ['created_at' => $now, 'updated_at' => $now])
+        // Use Eloquent so UUIDs are auto-generated via HasUuids
+        foreach ($features as $featureData) {
+            Feature::updateOrCreate(
+                ['slug' => $featureData['slug']],
+                $featureData
             );
         }
 
@@ -52,13 +52,12 @@ class FeatureSeeder extends Seeder
         ];
 
         foreach ($plans as $plan => $slugs) {
-            $featureIds = DB::table('features')->whereIn('slug', $slugs)->pluck('id');
-            foreach ($featureIds as $featureId) {
-                DB::table('plan_features')->updateOrInsert(
-                    ['plan' => $plan, 'feature_id' => $featureId],
-                    ['is_active' => true, 'created_at' => $now, 'updated_at' => $now]
+            Feature::whereIn('slug', $slugs)->each(function (Feature $feature) use ($plan) {
+                PlanFeature::updateOrCreate(
+                    ['plan' => $plan, 'feature_id' => $feature->id],
+                    ['is_active' => true]
                 );
-            }
+            });
         }
     }
 }

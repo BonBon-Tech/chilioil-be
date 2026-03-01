@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('plan_features', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->enum('plan', ['basic', 'pro', 'custom']);
-            $table->foreignId('feature_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('feature_id')->constrained()->cascadeOnDelete();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 

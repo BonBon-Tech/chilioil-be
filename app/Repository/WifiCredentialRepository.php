@@ -2,21 +2,15 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\WifiCredential;
+use App\Traits\UsesCompanyScope;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Auth;
 
 class WifiCredentialRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -38,14 +32,14 @@ class WifiCredentialRepository
         return $this->scopedQuery()->orderBy('is_active', 'desc')->paginate($perPage);
     }
 
-    public function find(int $id): ?WifiCredential
+    public function find(string $id): ?WifiCredential
     {
         return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): WifiCredential
     {
-        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return WifiCredential::create($data);
     }
 

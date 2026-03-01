@@ -2,23 +2,20 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 
 class UserRepository
 {
-    private function getCompanyId(): ?int
+    private function getCompanyId(): ?string
     {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null; // owner sees all
-        }
-        return $user?->company_id;
+        if (JwtClaims::isOwner()) return null; // owner sees all
+        return JwtClaims::companyId();
     }
 
     private function scopedQuery()
     {
-        $query = User::with('role');
+        $query = User::with(['role', 'assignedStore']);
         $companyId = $this->getCompanyId();
         if ($companyId) {
             $query->where('company_id', $companyId);
@@ -43,7 +40,7 @@ class UserRepository
 
     public function create(array $data)
     {
-        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return User::create($data);
     }
 

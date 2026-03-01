@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CashFlow extends Model
 {
-    use SoftDeletes;
+    use HasUuids, SoftDeletes;
 
     public const TYPE_INCOME = 'INCOME';
     public const TYPE_EXPENSES = 'EXPENSES';

@@ -4,18 +4,11 @@ namespace App\Repository;
 
 use App\Models\Product;
 use App\Models\Store;
-use Illuminate\Support\Facades\Auth;
+use App\Traits\UsesCompanyScope;
 
 class ProductRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -74,7 +67,7 @@ class ProductRepository
         return $query->paginate($perPage);
     }
 
-    public function find(int $id): ?Product
+    public function find(string $id): ?Product
     {
         return $this->scopedQuery()->find($id);
     }
@@ -84,7 +77,7 @@ class ProductRepository
         return Product::create($data);
     }
 
-    public function update(int $id, array $data): ?Product
+    public function update(string $id, array $data): ?Product
     {
         $product = $this->scopedQuery()->find($id);
         if (!$product) {
@@ -94,7 +87,7 @@ class ProductRepository
         return $product->fresh(['store', 'productCategory']);
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
         $product = $this->scopedQuery()->find($id);
         if (!$product) {

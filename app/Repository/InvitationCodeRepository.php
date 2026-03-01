@@ -10,7 +10,7 @@ class InvitationCodeRepository
 {
     public function all(): Collection
     {
-        return InvitationCode::with('usedByUser')->orderBy('created_at', 'desc')->get();
+        return InvitationCode::with(['usedByUser', 'company'])->orderBy('created_at', 'desc')->get();
     }
 
     public function findByCode(string $code): ?InvitationCode
@@ -23,7 +23,7 @@ class InvitationCodeRepository
         return InvitationCode::where('code', $code)->where('is_used', false)->first();
     }
 
-    public function generate(): InvitationCode
+    public function generate(string $plan = 'basic'): InvitationCode
     {
         $code = strtoupper(Str::random(8));
 
@@ -34,20 +34,22 @@ class InvitationCodeRepository
 
         return InvitationCode::create([
             'code' => $code,
+            'plan' => $plan,
             'is_used' => false,
         ]);
     }
 
-    public function markAsUsed(InvitationCode $invitationCode, int $userId): void
+    public function markAsUsed(InvitationCode $invitationCode, string $userId, string $companyId): void
     {
         $invitationCode->update([
             'is_used' => true,
             'used_by' => $userId,
+            'company_id' => $companyId,
             'used_at' => now(),
         ]);
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
         $code = InvitationCode::where('id', $id)->where('is_used', false)->first();
         if (!$code) {

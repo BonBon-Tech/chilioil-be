@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Company extends Model
 {
-    use SoftDeletes;
+    use HasUuids, SoftDeletes;
 
     const PLAN_BASIC = 'basic';
     const PLAN_PRO = 'pro';

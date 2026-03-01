@@ -37,7 +37,7 @@ class ExpenseController extends Controller
         return ApiResponse::success($expense, 'Expense created successfully');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $expense = $this->expenseRepository->findById($id);
 
@@ -48,7 +48,7 @@ class ExpenseController extends Controller
         return ApiResponse::success($expense, 'Expense retrieved successfully');
     }
 
-    public function update(UpdateExpenseRequest $request, int $id): JsonResponse
+    public function update(UpdateExpenseRequest $request, string $id): JsonResponse
     {
         $expense = $this->expenseRepository->findById($id);
 
@@ -62,7 +62,7 @@ class ExpenseController extends Controller
         return ApiResponse::success($expense, 'Expense updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $expense = $this->expenseRepository->findById($id);
 

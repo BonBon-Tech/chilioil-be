@@ -3,33 +3,19 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\Role;
 
 class UserSeeder extends Seeder
 {
-    public function run()
+    /**
+     * admin@example.com and staff@example.com are no longer seeded here.
+     * They exist in the production dump and are imported via:
+     *   php artisan import:production-data
+     *
+     * The owner@example.com and demo@example.com accounts are created by
+     * the 2026_02_26_000007_seed_demo_and_owner migration.
+     */
+    public function run(): void
     {
-        $adminRole = Role::where('name', 'admin')->first();
-        $staffRole = Role::where('name', 'staff')->first();
-
-        User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => bcrypt('admin123'),
-                'role_id' => $adminRole ? $adminRole->id : null,
-            ]
-        );
-
-        User::firstOrCreate(
-            ['email' => 'staff@example.com'],
-            [
-                'name' => 'Staff User',
-                'password' => bcrypt('staff123'),
-                'role_id' => $staffRole ? $staffRole->id : null,
-            ]
-        );
+        // No-op: real users come from production import; demo/owner from migrations.
     }
 }
-

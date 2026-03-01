@@ -2,20 +2,14 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\Expense;
+use App\Traits\UsesCompanyScope;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
 
 class ExpenseRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -40,17 +34,21 @@ class ExpenseRepository
             $query->where('description', 'like', '%' . $filters['search'] . '%');
         }
 
+        if (!empty($filters['store_id'])) {
+            $query->where('store_id', $filters['store_id']);
+        }
+
         return $query->paginate($perPage);
     }
 
-    public function findById(int $id): ?Expense
+    public function findById(string $id): ?Expense
     {
         return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): Expense
     {
-        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         $expense = Expense::create($data);
         return $expense->load('expenseCategory');
     }

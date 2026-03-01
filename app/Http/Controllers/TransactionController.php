@@ -52,7 +52,7 @@ class TransactionController extends Controller
         return ApiResponse::success($transaction, 'Transaction created successfully', 201);
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $transaction = $this->transactions->findById($id);
 
@@ -63,7 +63,7 @@ class TransactionController extends Controller
         return ApiResponse::success($transaction, 'Transaction fetched successfully');
     }
 
-    public function update(UpdateTransactionRequest $request, int $id): JsonResponse
+    public function update(UpdateTransactionRequest $request, string $id): JsonResponse
     {
         $transaction = $this->transactions->update($id, $request->validated());
 
@@ -74,7 +74,7 @@ class TransactionController extends Controller
         return ApiResponse::success($transaction, 'Transaction updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $deleted = $this->transactions->delete($id);
 

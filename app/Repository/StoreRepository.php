@@ -2,19 +2,13 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\Store;
-use Illuminate\Support\Facades\Auth;
+use App\Traits\UsesCompanyScope;
 
 class StoreRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -31,18 +25,18 @@ class StoreRepository
         return $this->scopedQuery()->get();
     }
 
-    public function find(int $id): ?Store
+    public function find(string $id): ?Store
     {
         return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): Store
     {
-        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return Store::create($data);
     }
 
-    public function update(int $id, array $data): ?Store
+    public function update(string $id, array $data): ?Store
     {
         $store = $this->scopedQuery()->find($id);
         if (!$store) {
@@ -52,7 +46,7 @@ class StoreRepository
         return $store;
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
         $store = $this->scopedQuery()->find($id);
         if (!$store) {

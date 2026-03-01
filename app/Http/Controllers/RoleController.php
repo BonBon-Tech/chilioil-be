@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Helpers\ApiResponse;
 
 class RoleController extends Controller
 {
     public function index(): \Illuminate\Http\JsonResponse
     {
-        $roles = Role::all();
+        $user = Auth::user();
+        $roles = Role::when(
+            $user->role->name !== 'owner',
+            fn($q) => $q->where('name', '!=', 'owner')
+        )->get();
         return ApiResponse::success($roles, 'Role list fetched successfully');
     }
 

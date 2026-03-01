@@ -40,7 +40,11 @@ class AuthController extends Controller
             return ApiResponse::error('Kode undangan tidak valid atau sudah digunakan', null, 422);
         }
 
-        return ApiResponse::success(['valid' => true, 'code' => $code->code], 'Kode undangan valid');
+        return ApiResponse::success([
+            'valid' => true,
+            'code' => $code->code,
+            'plan' => $code->plan,
+        ], 'Kode undangan valid');
     }
 
     public function register(RegisterRequest $request): \Illuminate\Http\JsonResponse
@@ -54,12 +58,12 @@ class AuthController extends Controller
 
         try {
             $result = DB::transaction(function () use ($validated, $invitationCode) {
-                // 1. Create company
+                // 1. Create company — use plan from invitation code
                 $company = Company::create([
                     'name' => $validated['company_name'],
                     'slug' => Str::slug($validated['company_name']) . '-' . Str::random(4),
                     'is_demo' => false,
-                    'plan' => Company::PLAN_BASIC,
+                    'plan' => $invitationCode->plan ?? Company::PLAN_BASIC,
                 ]);
 
                 // 2. Create default store
@@ -80,8 +84,8 @@ class AuthController extends Controller
                     'company_id' => $company->id,
                 ]);
 
-                // 5. Mark invitation code as used
-                $this->invitationCodeRepo->markAsUsed($invitationCode, $user->id);
+                // 5. Mark invitation code as used (track which company registered with it)
+                $this->invitationCodeRepo->markAsUsed($invitationCode, $user->id, $company->id);
 
                 // 6. Generate JWT
                 $token = JWTAuth::fromUser($user);

@@ -2,26 +2,19 @@
 
 namespace App\Repository;
 
+use App\Models\Expense;
 use App\Models\OnlineTransactionDetail;
 use App\Models\Product;
-use App\Models\User;
-use App\Models\Transaction;
-use App\Models\Expense;
-use App\Models\TransactionItem;
 use App\Models\Store;
+use App\Models\Transaction;
+use App\Models\TransactionItem;
+use App\Models\User;
+use App\Traits\UsesCompanyScope;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 
 class DashboardRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     public function getSummary(?string $startDate = null, ?string $endDate = null): array
     {

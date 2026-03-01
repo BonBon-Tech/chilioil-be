@@ -17,6 +17,7 @@ use App\Http\Controllers\WifiCredentialController;
 use App\Http\Controllers\InvitationCodeController;
 use App\Http\Controllers\FeatureController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\OwnerDashboardController;
 
 
 // Health check — no auth required
@@ -136,6 +137,8 @@ Route::prefix('/v1')->group(function () {
 
         // Owner-only routes
         Route::middleware('owner')->group(function () {
+            Route::get('owner/dashboard', [OwnerDashboardController::class, 'index']);
+
             Route::get('features', [FeatureController::class, 'index']);
             Route::get('plan-features', [FeatureController::class, 'planFeatures']);
             Route::put('plan-features', [FeatureController::class, 'updatePlanFeature']);

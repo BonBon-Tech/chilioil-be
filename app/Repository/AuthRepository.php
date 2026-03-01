@@ -11,7 +11,7 @@ class AuthRepository
     public function attemptLogin($credentials)
     {
         if ($token = JWTAuth::attempt($credentials)) {
-            $user = User::query()->with(['role', 'company'])->where('email', $credentials['email'])->first();
+            $user = User::query()->with(['role', 'company', 'assignedStore'])->where('email', $credentials['email'])->first();
             return [
                 'user' => $user,
                 'token' => $token
@@ -22,7 +22,7 @@ class AuthRepository
 
     public function getUser()
     {
-        return User::with(['role', 'company'])->find(Auth::id());
+        return User::with(['role', 'company', 'assignedStore'])->find(Auth::id());
     }
 
     public function updateUser($user, $data)

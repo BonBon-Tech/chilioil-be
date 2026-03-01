@@ -2,19 +2,13 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\ProductCategory;
-use Illuminate\Support\Facades\Auth;
+use App\Traits\UsesCompanyScope;
 
 class ProductCategoryRepository
 {
-    private function getCompanyId(): ?int
-    {
-        $user = Auth::user();
-        if ($user && $user->role && $user->role->name === 'owner') {
-            return null;
-        }
-        return $user?->company_id;
-    }
+    use UsesCompanyScope;
 
     private function scopedQuery()
     {
@@ -46,6 +40,10 @@ class ProductCategoryRepository
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['store_id'])) {
+            $query->whereHas('products', fn($q) => $q->where('store_id', $filters['store_id']));
+        }
+
         return $query->get();
     }
 
@@ -69,21 +67,25 @@ class ProductCategoryRepository
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['store_id'])) {
+            $query->whereHas('products', fn($q) => $q->where('store_id', $filters['store_id']));
+        }
+
         return $query->paginate($perPage);
     }
 
-    public function find(int $id): ?ProductCategory
+    public function find(string $id): ?ProductCategory
     {
         return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): ProductCategory
     {
-        $data['company_id'] = $data['company_id'] ?? Auth::user()->company_id;
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return ProductCategory::create($data);
     }
 
-    public function update(int $id, array $data): ?ProductCategory
+    public function update(string $id, array $data): ?ProductCategory
     {
         $category = $this->scopedQuery()->find($id);
         if (!$category) {
@@ -93,7 +95,7 @@ class ProductCategoryRepository
         return $category;
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
         $category = $this->scopedQuery()->find($id);
         if (!$category) {
