@@ -27,7 +27,7 @@ class WifiCredentialController extends Controller
         return ApiResponse::success($data, 'WiFi credentials fetched');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {
@@ -42,7 +42,7 @@ class WifiCredentialController extends Controller
         return ApiResponse::success($wifiCredential, 'WiFi credential created', 201);
     }
 
-    public function update(UpdateWifiCredentialRequest $request, int $id): JsonResponse
+    public function update(UpdateWifiCredentialRequest $request, string $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {
@@ -52,7 +52,7 @@ class WifiCredentialController extends Controller
         return ApiResponse::success($wifiCredential, 'WiFi credential updated');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $wifiCredential = $this->repository->find($id);
         if (!$wifiCredential) {

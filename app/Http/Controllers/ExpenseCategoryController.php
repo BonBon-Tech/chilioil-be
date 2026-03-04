@@ -35,7 +35,7 @@ class ExpenseCategoryController extends Controller
         return ApiResponse::success($expenseCategory, 'Expense category created successfully');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $expenseCategory = $this->expenseCategoryRepository->findById($id);
 
@@ -46,7 +46,7 @@ class ExpenseCategoryController extends Controller
         return ApiResponse::success($expenseCategory, 'Expense category retrieved successfully');
     }
 
-    public function update(UpdateExpenseCategoryRequest $request, int $id): JsonResponse
+    public function update(UpdateExpenseCategoryRequest $request, string $id): JsonResponse
     {
         $expenseCategory = $this->expenseCategoryRepository->findById($id);
 
@@ -60,7 +60,7 @@ class ExpenseCategoryController extends Controller
         return ApiResponse::success($expenseCategory, 'Expense category updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $expenseCategory = $this->expenseCategoryRepository->findById($id);
 

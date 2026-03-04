@@ -28,7 +28,7 @@ class ProductController extends Controller
         return ApiResponse::success($products, 'Product list fetched successfully');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $product = $this->products->find($id);
         if (!$product) {
@@ -46,7 +46,7 @@ class ProductController extends Controller
         return ApiResponse::success($product, 'Product created successfully');
     }
 
-    public function update(UpdateProductRequest $request, int $id): JsonResponse
+    public function update(UpdateProductRequest $request, string $id): JsonResponse
     {
         $product = $this->products->update($id, $request->validated());
         if (!$product) {
@@ -55,7 +55,7 @@ class ProductController extends Controller
         return ApiResponse::success($product, 'Product updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $deleted = $this->products->delete($id);
         if (!$deleted) {

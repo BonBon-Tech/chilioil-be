@@ -22,7 +22,7 @@ class StoreController extends Controller
         return ApiResponse::success($this->stores->all(), 'Store list fetched successfully');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $store = $this->stores->find($id);
         if (!$store) {
@@ -37,7 +37,7 @@ class StoreController extends Controller
         return ApiResponse::success($store, 'Store created successfully');
     }
 
-    public function update(UpdateStoreRequest $request, int $id): JsonResponse
+    public function update(UpdateStoreRequest $request, string $id): JsonResponse
     {
         $store = $this->stores->update($id, $request->validated());
         if (!$store) {
@@ -46,7 +46,7 @@ class StoreController extends Controller
         return ApiResponse::success($store, 'Store updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $deleted = $this->stores->delete($id);
         if (!$deleted) {

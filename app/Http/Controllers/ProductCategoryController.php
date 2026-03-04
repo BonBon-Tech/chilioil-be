@@ -28,7 +28,7 @@ class ProductCategoryController extends Controller
         return ApiResponse::success($categories, 'Product category list fetched successfully');
     }
 
-    public function show(int $id): JsonResponse
+    public function show(string $id): JsonResponse
     {
         $category = $this->categories->find($id);
         if (!$category) {
@@ -46,7 +46,7 @@ class ProductCategoryController extends Controller
         return ApiResponse::success($category, 'Product category created successfully');
     }
 
-    public function update(UpdateProductCategoryRequest $request, int $id): JsonResponse
+    public function update(UpdateProductCategoryRequest $request, string $id): JsonResponse
     {
         $category = $this->categories->update($id, $request->validated());
         if (!$category) {
@@ -55,7 +55,7 @@ class ProductCategoryController extends Controller
         return ApiResponse::success($category, 'Product category updated successfully');
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $id): JsonResponse
     {
         $deleted = $this->categories->delete($id);
         if (!$deleted) {
