@@ -15,7 +15,7 @@ class StoreProductCategoryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:product_categories,slug',
+            'slug' => 'nullable|string|max:255|unique:product_categories,slug',
             'logo' => 'required|string',
             'status' => 'sometimes|boolean',
         ];

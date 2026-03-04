@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Traits\CheckDemoLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -42,8 +43,31 @@ class ProductController extends Controller
         $demoCheck = $this->checkDemoLimit(Product::class, 2);
         if ($demoCheck) return $demoCheck;
 
-        $product = $this->products->create($request->validated());
+        $data = $request->validated();
+
+        // Auto-generate SKU if not provided
+        if (empty($data['code'])) {
+            $prefix = Str::upper(Str::substr($data['name'], 0, 2));
+            $i = 1;
+            do {
+                $code = $prefix . str_pad($i, 3, '0', STR_PAD_LEFT);
+                $i++;
+            } while (Product::where('code', $code)->exists());
+            $data['code'] = $code;
+        }
+
+        $product = $this->products->create($data);
         return ApiResponse::success($product, 'Product created successfully');
+    }
+
+    public function toggleStatus(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate(['status' => 'required|boolean']);
+        $product = $this->products->update($id, ['status' => $validated['status']]);
+        if (!$product) {
+            return ApiResponse::error('Product not found', null, 404);
+        }
+        return ApiResponse::success($product, 'Status produk berhasil diperbarui');
     }
 
     public function update(UpdateProductRequest $request, string $id): JsonResponse
