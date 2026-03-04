@@ -64,6 +64,7 @@ class AuthController extends Controller
                     'slug' => Str::slug($validated['company_name']) . '-' . Str::random(4),
                     'is_demo' => false,
                     'plan' => $invitationCode->plan ?? Company::PLAN_BASIC,
+                    'subscription_expires_at' => now()->addMonths($invitationCode->months ?? 1),
                 ]);
 
                 // 2. Create default store

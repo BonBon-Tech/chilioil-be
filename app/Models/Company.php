@@ -20,11 +20,29 @@ class Company extends Model
         'slug',
         'is_demo',
         'plan',
+        'subscription_expires_at',
     ];
 
     protected $casts = [
         'is_demo' => 'boolean',
+        'subscription_expires_at' => 'datetime',
     ];
+
+    public function isExpired(): bool
+    {
+        if ($this->is_demo || !$this->subscription_expires_at) {
+            return false;
+        }
+        return $this->subscription_expires_at->isPast();
+    }
+
+    public function daysUntilExpiry(): ?int
+    {
+        if ($this->is_demo || !$this->subscription_expires_at) {
+            return null;
+        }
+        return (int) now()->diffInDays($this->subscription_expires_at, false);
+    }
 
     public function isPro(): bool
     {

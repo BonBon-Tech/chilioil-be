@@ -12,6 +12,7 @@ class InvitationCode extends Model
     protected $fillable = [
         'code',
         'plan',
+        'months',
         'is_used',
         'used_by',
         'company_id',
@@ -19,6 +20,7 @@ class InvitationCode extends Model
     ];
 
     protected $casts = [
+        'months' => 'integer',
         'is_used' => 'boolean',
         'used_at' => 'datetime',
     ];

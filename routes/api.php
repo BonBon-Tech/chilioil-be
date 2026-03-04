@@ -68,7 +68,7 @@ Route::prefix('/v1')->group(function () {
     });
 
     // Authenticated + company-scoped routes
-    Route::middleware(['jwt', 'company.scope'])->group(function () {
+    Route::middleware(['jwt', 'company.scope', 'check.subscription'])->group(function () {
         // User features (for mobile sidebar)
         Route::get('user/features', [FeatureController::class, 'userFeatures']);
 
@@ -145,6 +145,7 @@ Route::prefix('/v1')->group(function () {
 
             Route::get('companies', [CompanyController::class, 'index']);
             Route::put('companies/{id}/plan', [CompanyController::class, 'updatePlan']);
+            Route::post('companies/{id}/renew', [CompanyController::class, 'renew']);
 
             Route::get('invitation-codes', [InvitationCodeController::class, 'index']);
             Route::post('invitation-codes/generate', [InvitationCodeController::class, 'generate']);

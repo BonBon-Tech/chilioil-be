@@ -21,13 +21,16 @@ class CompanyController extends Controller
         $perPage = min((int) $request->query('per_page', 10), 50);
         $companies = $this->repo->paginateWithStats($perPage, $search);
         $companies->through(fn($c) => [
-            'id'                => $c->id,
-            'name'              => $c->name,
-            'plan'              => $c->plan,
-            'is_demo'           => $c->is_demo,
-            'transaction_count' => $c->transactions_count,
-            'user_count'        => $c->users_count,
-            'created_at'        => $c->created_at,
+            'id'                      => $c->id,
+            'name'                    => $c->name,
+            'plan'                    => $c->plan,
+            'is_demo'                 => $c->is_demo,
+            'transaction_count'       => $c->transactions_count,
+            'user_count'              => $c->users_count,
+            'created_at'              => $c->created_at,
+            'subscription_expires_at' => $c->subscription_expires_at?->toDateString(),
+            'days_until_expiry'       => $c->daysUntilExpiry(),
+            'is_expired'              => $c->isExpired(),
         ]);
         return ApiResponse::success($companies, 'Companies fetched');
     }
@@ -45,5 +48,27 @@ class CompanyController extends Controller
         }
 
         return ApiResponse::success($company, 'Plan berhasil diperbarui');
+    }
+
+    public function renew(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'months' => 'required|integer|min:1|max:24',
+        ]);
+
+        $company = $this->repo->renew($id, (int) $request->months);
+
+        if (!$company) {
+            return ApiResponse::error('Company not found', null, 404);
+        }
+
+        return ApiResponse::success([
+            'id'                      => $company->id,
+            'name'                    => $company->name,
+            'plan'                    => $company->plan,
+            'subscription_expires_at' => $company->subscription_expires_at?->toDateString(),
+            'days_until_expiry'       => $company->daysUntilExpiry(),
+            'is_expired'              => $company->isExpired(),
+        ], 'Subscription berhasil diperpanjang');
     }
 }

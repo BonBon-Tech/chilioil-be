@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'company.scope' => \App\Http\Middleware\CompanyScope::class,
             'check.plan' => \App\Http\Middleware\CheckPlan::class,
             'owner' => \App\Http\Middleware\OwnerOnly::class,
+            'check.subscription' => \App\Http\Middleware\CheckSubscription::class,
         ]);
 
         $middleware->append(\App\Http\Middleware\Cors::class);

@@ -23,7 +23,7 @@ class InvitationCodeRepository
         return InvitationCode::where('code', $code)->where('is_used', false)->first();
     }
 
-    public function generate(string $plan = 'basic'): InvitationCode
+    public function generate(string $plan = 'basic', int $months = 1): InvitationCode
     {
         $code = strtoupper(Str::random(8));
 
@@ -35,6 +35,7 @@ class InvitationCodeRepository
         return InvitationCode::create([
             'code' => $code,
             'plan' => $plan,
+            'months' => $months,
             'is_used' => false,
         ]);
     }

@@ -50,4 +50,23 @@ class CompanyRepository
         $company->update(['plan' => $plan]);
         return $company;
     }
+
+    public function renew(string $id, int $months): ?Company
+    {
+        $company = Company::find($id);
+        if (!$company) {
+            return null;
+        }
+
+        // Extend from current expiry if still active, otherwise from now
+        $base = ($company->subscription_expires_at && $company->subscription_expires_at->isFuture())
+            ? $company->subscription_expires_at->clone()
+            : now();
+
+        $company->update([
+            'subscription_expires_at' => $base->addMonths($months),
+        ]);
+
+        return $company;
+    }
 }

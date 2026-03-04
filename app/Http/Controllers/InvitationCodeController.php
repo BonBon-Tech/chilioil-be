@@ -26,8 +26,9 @@ class InvitationCodeController extends Controller
     {
         $validated = $request->validate([
             'plan' => 'required|in:basic,pro,custom',
+            'months' => 'integer|min:1|max:24',
         ]);
-        $code = $this->repo->generate($validated['plan']);
+        $code = $this->repo->generate($validated['plan'], $validated['months'] ?? 1);
         return ApiResponse::success($code, 'Invitation code generated');
     }
 
