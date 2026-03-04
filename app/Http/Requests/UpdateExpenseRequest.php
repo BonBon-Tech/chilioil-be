@@ -14,7 +14,7 @@ class UpdateExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'expense_category_id' => 'sometimes|required|integer|exists:expense_categories,id',
+            'expense_category_id' => 'sometimes|required|string|exists:expense_categories,id',
             'date' => 'sometimes|required|date',
             'amount' => 'sometimes|required|numeric|min:0',
             'reference' => 'nullable|string|max:255',
@@ -26,7 +26,6 @@ class UpdateExpenseRequest extends FormRequest
     {
         return [
             'expense_category_id.required' => 'Expense category is required',
-            'expense_category_id.integer' => 'Expense category must be an integer',
             'expense_category_id.exists' => 'Selected expense category does not exist',
             'date.required' => 'Date is required',
             'date.date' => 'Date must be a valid date',
