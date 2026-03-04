@@ -19,9 +19,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd /var/www/chilioil-be
-            GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key" git pull origin main
+            git pull origin main
             composer install --no-dev --optimize-autoloader
             php artisan migrate --force
+            php artisan config:clear
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
