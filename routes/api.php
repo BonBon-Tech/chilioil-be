@@ -63,6 +63,7 @@ Route::prefix('/v1')->group(function () {
         Route::middleware('jwt')->group(function () {
             Route::get('/user', [AuthController::class, 'getUser']);
             Route::put('/user', [AuthController::class, 'updateUser']);
+            Route::put('/company', [AuthController::class, 'updateCompany']);
             Route::put('/change-password', [AuthController::class, 'changePassword']);
             Route::post('/logout', [AuthController::class, 'logout']);
         });

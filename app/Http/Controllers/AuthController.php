@@ -192,6 +192,25 @@ class AuthController extends Controller
         return ApiResponse::success(null, 'Password berhasil direset');
     }
 
+    public function updateCompany(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($user->role?->name !== 'admin') {
+            return ApiResponse::error('Hanya admin yang dapat mengubah profil perusahaan', null, 403);
+        }
+
+        $validated = $request->validate([
+            'name'     => 'sometimes|string|max:255',
+            'logo_url' => 'nullable|string|max:1000',
+        ]);
+
+        $user->company->update($validated);
+        $user->load(['role', 'company', 'assignedStore']);
+
+        return ApiResponse::success($user, 'Profil perusahaan berhasil diperbarui');
+    }
+
     public function changePassword(ChangePasswordRequest $request): \Illuminate\Http\JsonResponse
     {
         $user = Auth::user();
