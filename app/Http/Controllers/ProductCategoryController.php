@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProductCategoryRequest;
 use App\Http\Requests\UpdateProductCategoryRequest;
+use App\Models\ProductCategory;
 use App\Repository\ProductCategoryRepository;
 use App\Helpers\ApiResponse;
+use App\Traits\CheckDemoLimit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
 {
+    use CheckDemoLimit;
     protected ProductCategoryRepository $categories;
 
     public function __construct(ProductCategoryRepository $categories)
@@ -36,6 +39,9 @@ class ProductCategoryController extends Controller
 
     public function store(StoreProductCategoryRequest $request): JsonResponse
     {
+        $demoCheck = $this->checkDemoLimit(ProductCategory::class, 2);
+        if ($demoCheck) return $demoCheck;
+
         $category = $this->categories->create($request->validated());
         return ApiResponse::success($category, 'Product category created successfully');
     }

@@ -2,30 +2,43 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\Store;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use App\Traits\UsesCompanyScope;
 
 class StoreRepository
 {
-    public function all(): \Illuminate\Database\Eloquent\Collection
+    use UsesCompanyScope;
+
+    private function scopedQuery()
     {
-        return Store::all();
+        $query = Store::query();
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        return $query;
     }
 
-    public function find(int $id): ?Store
+    public function all(): \Illuminate\Database\Eloquent\Collection
     {
-        return Store::find($id);
+        return $this->scopedQuery()->get();
+    }
+
+    public function find(string $id): ?Store
+    {
+        return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): Store
     {
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return Store::create($data);
     }
 
-    public function update(int $id, array $data): ?Store
+    public function update(string $id, array $data): ?Store
     {
-        $store = Store::find($id);
+        $store = $this->scopedQuery()->find($id);
         if (!$store) {
             return null;
         }
@@ -33,9 +46,12 @@ class StoreRepository
         return $store;
     }
 
-    public function delete(int $id): bool
+    public function delete(string $id): bool
     {
-        return Store::destroy($id) > 0;
+        $store = $this->scopedQuery()->find($id);
+        if (!$store) {
+            return false;
+        }
+        return $store->delete();
     }
 }
-

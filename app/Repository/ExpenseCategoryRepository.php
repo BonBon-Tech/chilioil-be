@@ -2,23 +2,38 @@
 
 namespace App\Repository;
 
+use App\Helpers\JwtClaims;
 use App\Models\ExpenseCategory;
+use App\Traits\UsesCompanyScope;
 use Illuminate\Database\Eloquent\Collection;
 
 class ExpenseCategoryRepository
 {
-    public function getAll(): Collection
+    use UsesCompanyScope;
+
+    private function scopedQuery()
     {
-        return ExpenseCategory::all();
+        $query = ExpenseCategory::query();
+        $companyId = $this->getCompanyId();
+        if ($companyId) {
+            $query->where('company_id', $companyId);
+        }
+        return $query;
     }
 
-    public function findById(int $id): ?ExpenseCategory
+    public function getAll(): Collection
     {
-        return ExpenseCategory::find($id);
+        return $this->scopedQuery()->get();
+    }
+
+    public function findById(string $id): ?ExpenseCategory
+    {
+        return $this->scopedQuery()->find($id);
     }
 
     public function create(array $data): ExpenseCategory
     {
+        $data['company_id'] = $data['company_id'] ?? JwtClaims::companyId();
         return ExpenseCategory::create($data);
     }
 
@@ -32,4 +47,3 @@ class ExpenseCategoryRepository
         return $expenseCategory->delete();
     }
 }
-

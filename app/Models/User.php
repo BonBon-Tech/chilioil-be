@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -11,7 +12,7 @@ use Tymon\JWTAuth\Contracts\JWTSubject;
 class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasUuids, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -21,7 +22,9 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'name',
         'email',
-        "role_id",
+        'role_id',
+        'company_id',
+        'store_id',
         'password',
     ];
 
@@ -58,14 +61,30 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * Return an array with custom claims to be added to the JWT token.
+     * These are decoded on the frontend without requiring extra API calls.
      */
     public function getJWTCustomClaims()
     {
-        return [];
+        return [
+            'user_id'    => $this->id,
+            'company_id' => $this->company_id,
+            'store_id'   => $this->store_id,
+            'role'       => $this->role?->name,
+        ];
     }
 
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function assignedStore()
+    {
+        return $this->belongsTo(Store::class, 'store_id');
     }
 }

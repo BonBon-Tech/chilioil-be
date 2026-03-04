@@ -19,6 +19,7 @@ class UpdateUserRequest extends FormRequest
             'email' => 'sometimes|email|unique:users,email,' . $id,
             'password' => 'sometimes|string',
             'role_id' => 'sometimes|exists:roles,id',
+            'store_id' => 'sometimes|nullable|exists:stores,id',
         ];
     }
 }

@@ -8,9 +8,11 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Repository\UserRepository;
 use App\Helpers\ApiResponse;
+use App\Traits\CheckDemoLimit;
 
 class UserController extends Controller
 {
+    use CheckDemoLimit;
     protected UserRepository $users;
 
     public function __construct(UserRepository $users)
@@ -18,14 +20,18 @@ class UserController extends Controller
         $this->users = $users;
     }
 
-    public function index(): \Illuminate\Http\JsonResponse
+    public function index(Request $request): \Illuminate\Http\JsonResponse
     {
-        $users = $this->users->all();
+        $perPage = $request->get('per_page', 15);
+        $users = $this->users->paginate($perPage);
         return ApiResponse::success($users, 'User list fetched successfully');
     }
 
     public function store(StoreUserRequest $request): \Illuminate\Http\JsonResponse
     {
+        $demoCheck = $this->checkDemoLimit(User::class, 2);
+        if ($demoCheck) return $demoCheck;
+
         $validated = $request->validated();
         $validated['password'] = bcrypt($validated['password']);
         $user = $this->users->create($validated);

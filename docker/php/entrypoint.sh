@@ -29,6 +29,15 @@ if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   php artisan migrate --force --quiet || true
 fi
 
+# Run seeders if enabled (only on first run / empty database)
+if [ "${RUN_SEEDERS:-false}" = "true" ]; then
+  echo "[entrypoint] Running database seeders" >&2
+  php artisan db:seed --force --quiet || true
+fi
+
+# Create storage symlink
+php artisan storage:link --quiet 2>/dev/null || true
+
 # Cache config/routes/views in non-local env
 if [ "${APP_ENV:-local}" != "local" ]; then
   php artisan config:cache || true
@@ -38,4 +47,3 @@ fi
 
 echo "[entrypoint] Starting php-fpm" >&2
 exec php-fpm
-

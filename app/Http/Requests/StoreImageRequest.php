@@ -15,7 +15,7 @@ class StoreImageRequest extends FormRequest
     {
         return [
             'category' => 'required|string|in:product,user,category,store',
-            'image' => 'required|image|max:2048',
+            'image' => 'required|image|mimes:jpg,jpeg,png|max:1024',
         ];
     }
 }

@@ -9,11 +9,11 @@ class CreateProductsTable extends Migration
     public function up(): void
     {
         Schema::create('products', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('code')->unique();
-            $table->unsignedBigInteger('store_id');
-            $table->unsignedBigInteger('product_category_id');
+            $table->uuid('store_id');
+            $table->uuid('product_category_id');
             $table->enum('selling_type', ['Ingredient', 'Sale', 'Employee']);
             $table->string('image_path')->nullable();
             $table->decimal('price', 15, 2);

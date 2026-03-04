@@ -15,14 +15,75 @@ services:
       APP_ENV: ${APP_ENV:-local}
       APP_DEBUG: ${APP_DEBUG:-true}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_SEEDERS: ${RUN_SEEDERS:-true}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - dev-network
+      - chilioil-network
     healthcheck:
       test: ["CMD", "php", "-v"]
       interval: 30s
       timeout: 5s
       retries: 3
 
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: chilioil-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      php:
+        condition: service_healthy
+    networks:
+      - chilioil-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mysql:
+    image: mysql:8.0
+    container_name: chilioil-mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT_FORWARD:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-chilioil}
+    volumes:
+      - chilioil-mysql-data:/var/lib/mysql
+    networks:
+      - chilioil-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: chilioil-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT_FORWARD:-6379}:6379"
+    volumes:
+      - chilioil-redis-data:/data
+    networks:
+      - chilioil-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   queue:
     build:
@@ -36,9 +97,18 @@ services:
     command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
     environment:
       APP_ENV: ${APP_ENV:-local}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
-      - dev-network
+      - chilioil-network
+
+volumes:
+  chilioil-mysql-data:
+  chilioil-redis-data:
 
 networks:
-  dev-network:
-    external: true
+  chilioil-network:
+    driver: bridge

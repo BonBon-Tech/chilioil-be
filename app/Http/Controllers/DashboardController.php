@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Helpers\ApiResponse;
 use App\Repository\DashboardRepository;
 use App\Http\Resources\ProductSalesResource;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -17,9 +19,18 @@ class DashboardController extends Controller
         $this->dashboardRepository = $dashboardRepository;
     }
 
-    public function summary(): JsonResponse
+    public function summary(Request $request): JsonResponse
     {
-        $data = $this->dashboardRepository->getSummary();
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $data = $this->dashboardRepository->getSummary($startDate, $endDate);
+
+        // Basic plan: hide online transaction total
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            $data['online_transaction_total'] = 0;
+        }
+
         return ApiResponse::success($data, 'Dashboard summary');
     }
 
@@ -33,27 +44,64 @@ class DashboardController extends Controller
 
     public function storeSales(Request $request): JsonResponse
     {
-        $sales = $this->dashboardRepository->getStoreSales();
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $sales = $this->dashboardRepository->getStoreSales($startDate, $endDate);
         return ApiResponse::success($sales, 'Store sales summary');
     }
 
     public function storeOnlineSales(Request $request): JsonResponse
     {
-        $sales = $this->dashboardRepository->getOnlineStoreSales();
+        // Basic plan: return empty
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            return ApiResponse::success([], 'Store online sales summary');
+        }
+
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+        $sales = $this->dashboardRepository->getOnlineStoreSales($startDate, $endDate);
         return ApiResponse::success($sales, 'Store sales summary');
     }
 
     public function storeDailyOnlineSales(Request $request): JsonResponse
     {
+        // Basic plan: return 0
+        $user = Auth::user();
+        if ($user->company && $user->company->isBasic()) {
+            return ApiResponse::success(['total' => 0], 'Store sales summary');
+        }
+
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
         return ApiResponse::success([
-            'total' => $this->dashboardRepository->getDailyOnlineSales(),
+            'total' => $this->dashboardRepository->getDailyOnlineSales($startDate, $endDate),
         ], 'Store sales summary');
     }
 
     public function storeDailyOfflineSales(Request $request): JsonResponse
     {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
         return ApiResponse::success([
-            'total' => $this->dashboardRepository->getDailyOfflineSales(),
+            'total' => $this->dashboardRepository->getDailyOfflineSales($startDate, $endDate),
         ], 'Store sales summary');
+    }
+
+    public function weeklyTraffic(Request $request): JsonResponse
+    {
+        $startDate = $request->query('start_date', Carbon::now('Asia/Jakarta')->subDays(6)->format('Y-m-d'));
+        $endDate = $request->query('end_date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
+        $data = $this->dashboardRepository->getWeeklyTraffic($startDate, $endDate);
+        return ApiResponse::success($data, 'Weekly traffic data');
+    }
+
+    public function topProducts(Request $request): JsonResponse
+    {
+        $startDate = $request->query('start_date', Carbon::now('Asia/Jakarta')->subDays(6)->format('Y-m-d'));
+        $endDate = $request->query('end_date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
+        $limit = (int) $request->query('limit', 10);
+        $data = $this->dashboardRepository->getTopProducts($startDate, $endDate, $limit);
+        return ApiResponse::success($data, 'Top products');
     }
 }
