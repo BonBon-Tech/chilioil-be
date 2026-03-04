@@ -17,6 +17,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ValidateInvitationCodeRequest;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\ChangePasswordRequest;
 use App\Repository\AuthRepository;
 use App\Repository\InvitationCodeRepository;
 use App\Helpers\ApiResponse;
@@ -189,6 +190,20 @@ class AuthController extends Controller
         DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
 
         return ApiResponse::success(null, 'Password berhasil direset');
+    }
+
+    public function changePassword(ChangePasswordRequest $request): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::user();
+        $validated = $request->validated();
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return ApiResponse::error('Password saat ini tidak sesuai', null, 422);
+        }
+
+        $user->update(['password' => Hash::make($validated['password'])]);
+
+        return ApiResponse::success(null, 'Password berhasil diubah');
     }
 
     public function demoCredentials(): \Illuminate\Http\JsonResponse
