@@ -16,6 +16,7 @@ class Transaction extends Model
     protected $fillable = [
         'code',
         'company_id',
+        'store_id',
         'date',
         'customer_name',
         'total',
@@ -48,5 +49,10 @@ class Transaction extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 }

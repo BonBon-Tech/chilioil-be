@@ -20,7 +20,7 @@ class UpdateProductRequest extends FormRequest
             'code' => 'sometimes|required|string|max:50|unique:products,code,' . $id,
             'store_id' => 'sometimes|required|string|exists:stores,id',
             'product_category_id' => 'sometimes|required|string|exists:product_categories,id',
-            'selling_type' => 'sometimes|required|in:Ingredient,Sale,Employee',
+            'selling_type' => 'sometimes|required|in:Sale,Purchase',
             'image_path' => 'nullable|string|max:500',
             'price' => 'sometimes|required|numeric|min:0',
             'status' => 'sometimes|boolean',

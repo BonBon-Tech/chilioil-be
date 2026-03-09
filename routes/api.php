@@ -18,6 +18,9 @@ use App\Http\Controllers\InvitationCodeController;
 use App\Http\Controllers\FeatureController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\OwnerDashboardController;
+use App\Http\Controllers\StockOpnameController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ExportController;
 
 
 // Health check — no auth required
@@ -130,12 +133,52 @@ Route::prefix('/v1')->group(function () {
             Route::delete('expenses/{id}', [ExpenseController::class, 'destroy']);
         });
 
+        // Stock Opname (Pro plan)
+        Route::middleware('check.plan:stock-opname')->group(function () {
+            Route::get('stock-opnames', [StockOpnameController::class, 'index']);
+            Route::post('stock-opnames', [StockOpnameController::class, 'store']);
+            Route::get('stock-opnames/{id}', [StockOpnameController::class, 'show']);
+            Route::put('stock-opnames/{id}', [StockOpnameController::class, 'update']);
+            Route::delete('stock-opnames/{id}', [StockOpnameController::class, 'destroy']);
+            Route::put('stock-opnames/{id}/items/{itemId}', [StockOpnameController::class, 'updateItem']);
+            Route::post('stock-opnames/{id}/cancel', [StockOpnameController::class, 'cancel']);
+
+            // Admin only: approve & reject
+            Route::middleware('admin')->group(function () {
+                Route::post('stock-opnames/{id}/approve', [StockOpnameController::class, 'approve']);
+                Route::post('stock-opnames/{id}/reject', [StockOpnameController::class, 'reject']);
+            });
+        });
+
         Route::middleware('check.plan:expense-categories')->group(function () {
             Route::get('expense/categories', [ExpenseCategoryController::class, 'index']);
             Route::get('expense/categories/{id}', [ExpenseCategoryController::class, 'show']);
             Route::post('expense/categories', [ExpenseCategoryController::class, 'store']);
             Route::put('expense/categories/{id}', [ExpenseCategoryController::class, 'update']);
             Route::delete('expense/categories/{id}', [ExpenseCategoryController::class, 'destroy']);
+        });
+
+        // Reports
+        Route::prefix('reports')->group(function () {
+            Route::get('sales-summary',    [ReportController::class, 'salesSummary']);
+            Route::get('sales-by-type',    [ReportController::class, 'salesByType']);
+            Route::get('sales-by-payment', [ReportController::class, 'salesByPayment']);
+            Route::get('sales-by-store',   [ReportController::class, 'salesByStore']);
+            Route::get('top-products',     [ReportController::class, 'topProducts']);
+            Route::get('expense-summary',  [ReportController::class, 'expenseSummary']);
+            Route::get('expense-by-category', [ReportController::class, 'expenseByCategory']);
+            Route::get('profit-loss',      [ReportController::class, 'profitLoss']);
+        });
+
+        // Exports
+        Route::prefix('export')->group(function () {
+            Route::get('transactions',        [ExportController::class, 'exportTransactions']);
+            Route::get('expenses',            [ExportController::class, 'exportExpenses']);
+            Route::get('products',            [ExportController::class, 'exportProducts']);
+            Route::get('employees',           [ExportController::class, 'exportEmployees']);
+            Route::get('stores',              [ExportController::class, 'exportStores']);
+            Route::get('product-categories',  [ExportController::class, 'exportProductCategories']);
+            Route::get('expense-categories',  [ExportController::class, 'exportExpenseCategories']);
         });
 
         // Owner-only routes

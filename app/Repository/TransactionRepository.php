@@ -58,6 +58,9 @@ class TransactionRepository
         if (isset($filters['start_date'])) {
             $query->whereDate('date', '>=', $filters['start_date']);
         }
+        if (isset($filters['end_date'])) {
+            $query->whereDate('date', '<=', $filters['end_date']);
+        }
         if (isset($filters['from_date'])) {
             $query->whereDate('date', '<=', $filters['from_date']);
         }

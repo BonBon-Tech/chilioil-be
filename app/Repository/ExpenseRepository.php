@@ -30,12 +30,24 @@ class ExpenseRepository
     {
         $query = $this->scopedQuery()->orderBy('date', 'desc');
 
-        if (isset($filters['search'])) {
+        if (!empty($filters['search'])) {
             $query->where('description', 'like', '%' . $filters['search'] . '%');
         }
 
         if (!empty($filters['store_id'])) {
             $query->where('store_id', $filters['store_id']);
+        }
+
+        if (!empty($filters['category_id'])) {
+            $query->where('expense_category_id', $filters['category_id']);
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->whereDate('date', '>=', $filters['start_date']);
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->whereDate('date', '<=', $filters['end_date']);
         }
 
         return $query->paginate($perPage);

@@ -36,7 +36,7 @@ class FeatureSeeder extends Seeder
             );
         }
 
-        // Basic plan features
+        // Basic plan features (stock-opname is Pro only)
         $basicSlugs = [
             'dashboard', 'pos', 'products', 'product-categories', 'stores',
             'employees', 'designations', 'sales', 'wifi-credentials',
