@@ -21,7 +21,11 @@ use App\Http\Controllers\OwnerDashboardController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\TrialRequestController;
 
+
+// Trial request — no auth required (landing page form)
+Route::post('/v1/trial-requests', [TrialRequestController::class, 'store']);
 
 // Health check — no auth required
 Route::get('/health', function () {
@@ -196,6 +200,9 @@ Route::prefix('/v1')->group(function () {
             Route::get('invitation-codes', [InvitationCodeController::class, 'index']);
             Route::post('invitation-codes/generate', [InvitationCodeController::class, 'generate']);
             Route::delete('invitation-codes/{id}', [InvitationCodeController::class, 'destroy']);
+
+            Route::get('trial-requests', [TrialRequestController::class, 'index']);
+            Route::put('trial-requests/{id}', [TrialRequestController::class, 'update']);
         });
     });
 });

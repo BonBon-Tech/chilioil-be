@@ -22,7 +22,8 @@ class TransactionExport implements FromQuery, WithHeadings, WithMapping, WithSty
 
     public function query()
     {
-        $query = Transaction::where('company_id', $this->companyId)
+        $query = Transaction::with(['store'])
+            ->where('company_id', $this->companyId)
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc');
 
@@ -72,7 +73,7 @@ class TransactionExport implements FromQuery, WithHeadings, WithMapping, WithSty
             (float) $row->sub_total,
             (float) $row->total,
             (float) $row->online_transaction_revenue,
-            '-', // store not stored on transaction directly
+            $row->store?->name ?? '-',
         ];
     }
 

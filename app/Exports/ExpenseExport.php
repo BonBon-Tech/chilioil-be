@@ -21,7 +21,7 @@ class ExpenseExport implements FromQuery, WithHeadings, WithMapping, WithStyles
 
     public function query()
     {
-        $query = Expense::with(['expenseCategory'])
+        $query = Expense::with(['expenseCategory', 'store'])
             ->where('company_id', $this->companyId)
             ->orderBy('date', 'desc')
             ->orderBy('created_at', 'desc');
@@ -59,7 +59,7 @@ class ExpenseExport implements FromQuery, WithHeadings, WithMapping, WithStyles
             (float) $row->amount,
             $row->reference ?? '-',
             $row->description ?? '-',
-            '-', // store not stored on expense directly
+            $row->store?->name ?? '-',
         ];
     }
 

@@ -21,11 +21,15 @@ class ExportController extends Controller
     public function exportTransactions(Request $request)
     {
         $companyId = $this->getCompanyId();
-        $start     = $request->query('start_date', Carbon::now('Asia/Jakarta')->subDays(29)->format('Y-m-d'));
-        $end       = $request->query('end_date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
-        $status    = $request->query('status');
-        $type      = $request->query('type');
-        $storeId   = $request->query('store_id');
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
+        $start   = $request->query('start_date', Carbon::now('Asia/Jakarta')->subDays(29)->format('Y-m-d'));
+        $end     = $request->query('end_date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
+        $status  = $request->query('status');
+        $type    = $request->query('type');
+        $storeId = $request->query('store_id');
 
         $filename = 'penjualan_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
 
@@ -37,7 +41,11 @@ class ExportController extends Controller
 
     public function exportExpenses(Request $request)
     {
-        $companyId  = $this->getCompanyId();
+        $companyId = $this->getCompanyId();
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
         $start      = $request->query('start_date', Carbon::now('Asia/Jakarta')->subDays(29)->format('Y-m-d'));
         $end        = $request->query('end_date', Carbon::now('Asia/Jakarta')->format('Y-m-d'));
         $storeId    = $request->query('store_id');
@@ -53,7 +61,11 @@ class ExportController extends Controller
 
     public function exportProducts(Request $request)
     {
-        $companyId   = $this->getCompanyId();
+        $companyId = $this->getCompanyId();
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
         $storeId     = $request->query('store_id');
         $sellingType = $request->query('selling_type');
         $filename    = 'produk_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
@@ -64,7 +76,11 @@ class ExportController extends Controller
     public function exportEmployees(Request $request)
     {
         $companyId = $this->getCompanyId();
-        $filename  = 'karyawan_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
+        $filename = 'karyawan_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
 
         return Excel::download(new EmployeeExport($companyId), $filename);
     }
@@ -72,7 +88,11 @@ class ExportController extends Controller
     public function exportStores(Request $request)
     {
         $companyId = $this->getCompanyId();
-        $filename  = 'toko_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
+        $filename = 'toko_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
 
         return Excel::download(new StoreExport($companyId), $filename);
     }
@@ -80,7 +100,11 @@ class ExportController extends Controller
     public function exportProductCategories(Request $request)
     {
         $companyId = $this->getCompanyId();
-        $filename  = 'kategori_produk_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
+        $filename = 'kategori_produk_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
 
         return Excel::download(new ProductCategoryExport($companyId), $filename);
     }
@@ -88,7 +112,11 @@ class ExportController extends Controller
     public function exportExpenseCategories(Request $request)
     {
         $companyId = $this->getCompanyId();
-        $filename  = 'kategori_pengeluaran_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
+        if (!$companyId) {
+            return \App\Helpers\ApiResponse::error('Export tidak tersedia untuk akun owner', null, 403);
+        }
+
+        $filename = 'kategori_pengeluaran_' . Carbon::now('Asia/Jakarta')->format('Ymd') . '.xlsx';
 
         return Excel::download(new ExpenseCategoryExport($companyId), $filename);
     }
