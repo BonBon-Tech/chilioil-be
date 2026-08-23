@@ -1,9 +1,8 @@
 name: Deploy to VPS
 
+# Manual only until the IDCloudHost deployment secrets and server layout are ready.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:

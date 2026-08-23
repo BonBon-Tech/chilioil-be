@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Feature;
 use App\Models\PlanFeature;
+use Illuminate\Database\Seeder;
 
 class FeatureSeeder extends Seeder
 {
@@ -25,7 +25,8 @@ class FeatureSeeder extends Seeder
             ['slug' => 'wifi-credentials', 'name' => 'WiFi', 'route' => '/wifi-credentials', 'icon' => 'wifi', 'group' => 'lainnya', 'sort_order' => 12],
             ['slug' => 'stock-opname', 'name' => 'Stock Opname', 'route' => '/stock-opname', 'icon' => 'clipboard-list', 'group' => 'master', 'sort_order' => 13],
             ['slug' => 'reporting', 'name' => 'Laporan', 'route' => '/reporting', 'icon' => 'bar-chart', 'group' => 'keuangan', 'sort_order' => 14],
-            ['slug' => 'export-transaction', 'name' => 'Export Transaksi', 'route' => '/export-transaction', 'icon' => 'download', 'group' => 'transaksi', 'sort_order' => 15],
+            ['slug' => 'daily-report', 'name' => 'Laporan Harian', 'route' => '/daily-report', 'icon' => 'clipboard-list', 'group' => 'keuangan', 'sort_order' => 15],
+            ['slug' => 'export-transaction', 'name' => 'Export Transaksi', 'route' => '/export-transaction', 'icon' => 'download', 'group' => 'transaksi', 'sort_order' => 16],
         ];
 
         // Use Eloquent so UUIDs are auto-generated via HasUuids

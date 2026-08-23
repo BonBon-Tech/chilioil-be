@@ -10,12 +10,20 @@ return new class extends Migration
         // Step 1: migrate non-Sale/Purchase data to 'Sale' (safe default)
         DB::statement("UPDATE products SET selling_type = 'Sale' WHERE selling_type NOT IN ('Sale', 'Purchase')");
 
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Step 2: alter enum to only allow Sale and Purchase
         DB::statement("ALTER TABLE products MODIFY COLUMN selling_type ENUM('Sale', 'Purchase') NOT NULL DEFAULT 'Sale'");
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE products MODIFY COLUMN selling_type ENUM('Ingredient', 'Sale', 'Employee') NOT NULL DEFAULT 'Sale'");
     }
 };

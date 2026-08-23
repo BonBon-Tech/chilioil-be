@@ -1,28 +1,27 @@
 <?php
 
-use App\Http\Controllers\ImageController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\StoreController;
-use App\Http\Controllers\ProductCategoryController;
-use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\DailyReportController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\TransactionController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\WifiCredentialController;
-use App\Http\Controllers\InvitationCodeController;
-use App\Http\Controllers\FeatureController;
-use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\OwnerDashboardController;
-use App\Http\Controllers\StockOpnameController;
-use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\FeatureController;
+use App\Http\Controllers\ImageController;
+use App\Http\Controllers\InvitationCodeController;
+use App\Http\Controllers\OwnerDashboardController;
+use App\Http\Controllers\ProductCategoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\StockOpnameController;
+use App\Http\Controllers\StoreController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TrialRequestController;
-
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WifiCredentialController;
+use Illuminate\Support\Facades\Route;
 
 // Trial request — no auth required (landing page form)
 Route::post('/v1/trial-requests', [TrialRequestController::class, 'store']);
@@ -32,7 +31,7 @@ Route::get('/health', function () {
     try {
         \Illuminate\Support\Facades\DB::connection()->getPdo();
         $dbOk = true;
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         $dbOk = false;
     }
 
@@ -40,7 +39,7 @@ Route::get('/health', function () {
     try {
         \Illuminate\Support\Facades\Redis::ping();
         $redisOk = true;
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
         // Redis optional
     }
 
@@ -162,27 +161,38 @@ Route::prefix('/v1')->group(function () {
             Route::delete('expense/categories/{id}', [ExpenseCategoryController::class, 'destroy']);
         });
 
+        Route::prefix('daily-reports')->middleware('check.plan:daily-report')->group(function () {
+            Route::get('history', [DailyReportController::class, 'history']);
+            Route::get('creditors', [DailyReportController::class, 'creditors']);
+            Route::post('creditors', [DailyReportController::class, 'storeCreditor'])->middleware('admin');
+            Route::put('creditors/{creditor}', [DailyReportController::class, 'updateCreditor'])->middleware('admin');
+            Route::get('{date}', [DailyReportController::class, 'show']);
+            Route::put('{date}/restock', [DailyReportController::class, 'updateRestock']);
+            Route::put('{date}/debt', [DailyReportController::class, 'updateDebt']);
+            Route::put('{date}/income', [DailyReportController::class, 'updateIncome']);
+        });
+
         // Reports
         Route::prefix('reports')->group(function () {
-            Route::get('sales-summary',    [ReportController::class, 'salesSummary']);
-            Route::get('sales-by-type',    [ReportController::class, 'salesByType']);
+            Route::get('sales-summary', [ReportController::class, 'salesSummary']);
+            Route::get('sales-by-type', [ReportController::class, 'salesByType']);
             Route::get('sales-by-payment', [ReportController::class, 'salesByPayment']);
-            Route::get('sales-by-store',   [ReportController::class, 'salesByStore']);
-            Route::get('top-products',     [ReportController::class, 'topProducts']);
-            Route::get('expense-summary',  [ReportController::class, 'expenseSummary']);
+            Route::get('sales-by-store', [ReportController::class, 'salesByStore']);
+            Route::get('top-products', [ReportController::class, 'topProducts']);
+            Route::get('expense-summary', [ReportController::class, 'expenseSummary']);
             Route::get('expense-by-category', [ReportController::class, 'expenseByCategory']);
-            Route::get('profit-loss',      [ReportController::class, 'profitLoss']);
+            Route::get('profit-loss', [ReportController::class, 'profitLoss']);
         });
 
         // Exports
         Route::prefix('export')->group(function () {
-            Route::get('transactions',        [ExportController::class, 'exportTransactions']);
-            Route::get('expenses',            [ExportController::class, 'exportExpenses']);
-            Route::get('products',            [ExportController::class, 'exportProducts']);
-            Route::get('employees',           [ExportController::class, 'exportEmployees']);
-            Route::get('stores',              [ExportController::class, 'exportStores']);
-            Route::get('product-categories',  [ExportController::class, 'exportProductCategories']);
-            Route::get('expense-categories',  [ExportController::class, 'exportExpenseCategories']);
+            Route::get('transactions', [ExportController::class, 'exportTransactions']);
+            Route::get('expenses', [ExportController::class, 'exportExpenses']);
+            Route::get('products', [ExportController::class, 'exportProducts']);
+            Route::get('employees', [ExportController::class, 'exportEmployees']);
+            Route::get('stores', [ExportController::class, 'exportStores']);
+            Route::get('product-categories', [ExportController::class, 'exportProductCategories']);
+            Route::get('expense-categories', [ExportController::class, 'exportExpenseCategories']);
         });
 
         // Owner-only routes

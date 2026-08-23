@@ -10,12 +10,20 @@ return new class extends Migration
         // Fix any existing null last_known_stock values — should always be 0 if unknown
         DB::statement("UPDATE stock_opname_items SET last_known_stock = 0 WHERE last_known_stock IS NULL");
 
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         // Ensure the column always has a DB-level default of 0
         DB::statement("ALTER TABLE stock_opname_items MODIFY COLUMN last_known_stock DECIMAL(18,2) NOT NULL DEFAULT 0");
     }
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE stock_opname_items MODIFY COLUMN last_known_stock DECIMAL(18,2) NOT NULL DEFAULT 0");
     }
 };

@@ -7,6 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement("UPDATE stock_opnames SET status = 'pending' WHERE status IN ('draft', 'in_progress', 'waiting_approval')");
+            DB::statement("UPDATE stock_opnames SET status = 'approved' WHERE status = 'completed'");
+            return;
+        }
+
         // Step 1: Expand enum to allow both old and new values temporarily
         DB::statement("ALTER TABLE stock_opnames MODIFY COLUMN status ENUM(
             'draft','in_progress','waiting_approval','completed',
@@ -25,6 +31,14 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement("UPDATE stock_opnames SET status = 'waiting_approval' WHERE status = 'pending'");
+            DB::statement("UPDATE stock_opnames SET status = 'completed' WHERE status = 'approved'");
+            DB::statement("UPDATE stock_opnames SET status = 'in_progress' WHERE status = 'rejected'");
+            DB::statement("UPDATE stock_opnames SET status = 'draft' WHERE status = 'cancelled'");
+            return;
+        }
+
         DB::statement("ALTER TABLE stock_opnames MODIFY COLUMN status ENUM(
             'pending','approved','rejected','cancelled',
             'draft','in_progress','waiting_approval','completed'
