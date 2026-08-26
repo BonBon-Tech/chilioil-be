@@ -103,6 +103,34 @@ class DailyReportTest extends TestCase
             ->assertJsonPath('errors.feature', 'daily-report');
     }
 
+    public function test_empty_expense_categories_get_a_default_restock_category(): void
+    {
+        $feature = Feature::create([
+            'slug' => 'expense-categories',
+            'name' => 'Kategori Pengeluaran',
+            'route' => '/expense-categories',
+            'icon' => 'folder',
+            'group' => 'keuangan',
+            'sort_order' => 11,
+        ]);
+        PlanFeature::create([
+            'plan' => 'pro',
+            'feature_id' => $feature->id,
+            'is_active' => true,
+        ]);
+
+        $this->withToken(JWTAuth::fromUser($this->admin))
+            ->getJson('/api/v1/expense/categories')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Restok');
+
+        $this->assertDatabaseHas('expense_categories', [
+            'company_id' => $this->company->id,
+            'name' => 'Restok',
+        ]);
+    }
+
     public function test_saving_restock_creates_itemized_expenses_atomically(): void
     {
         $creditor = $this->creditor();

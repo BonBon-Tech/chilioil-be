@@ -23,7 +23,20 @@ class ExpenseCategoryRepository
 
     public function getAll(): Collection
     {
-        return $this->scopedQuery()->get();
+        $categories = $this->scopedQuery()->get();
+        $companyId = $this->getCompanyId();
+
+        if ($categories->isNotEmpty() || !$companyId) {
+            return $categories;
+        }
+
+        $default = ExpenseCategory::withTrashed()->firstOrCreate(
+            ['company_id' => $companyId, 'code' => 'RESTOCK-'.$companyId],
+            ['name' => 'Restok'],
+        );
+        $default->restore();
+
+        return new Collection([$default]);
     }
 
     public function findById(string $id): ?ExpenseCategory
