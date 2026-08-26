@@ -62,7 +62,7 @@ MAIL_USERNAME=null
 MAIL_PASSWORD=null
 MAIL_ENCRYPTION=null
 MAIL_FROM_ADDRESS="noreply@example.test"
-MAIL_FROM_NAME="ChiliOil"
+MAIL_FROM_NAME="Oren POS"
 ```
 
 ## Build & Start
