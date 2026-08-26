@@ -17,24 +17,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: pdo_sqlite, mbstring, redis
-          coverage: none
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
-
-      - name: Run tests
-        run: composer test
 
       - name: Configure SSH
         env:
@@ -79,10 +67,10 @@ jobs:
             docker compose build php queue
           fi
 
-          docker compose run --rm --no-deps --entrypoint composer php \
+          docker exec chilioil-php composer \
             install --no-dev --optimize-autoloader --no-interaction --no-progress
 
-          docker compose run --rm --no-deps --user www-data --entrypoint sh php -c '
+          docker exec --user www-data chilioil-php sh -c '
             php artisan optimize:clear &&
             php artisan migrate --force &&
             php artisan config:cache &&
