@@ -1,28 +1,112 @@
-name: Deploy to VPS
+name: Deploy backend to IDCloudHost
 
-# Manual only until the IDCloudHost deployment secrets and server layout are ready.
 on:
   workflow_dispatch:
+    inputs:
+      rebuild_images:
+        description: Rebuild PHP images after Dockerfile or extension changes
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chilioil-backend-production
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  test-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.0.3
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd /var/www/chilioil-be
-            git pull origin main
-            composer install --no-dev --optimize-autoloader
-            php artisan migrate --force
-            php artisan config:clear
-            php artisan config:cache
-            php artisan route:cache
+          php-version: '8.2'
+          extensions: pdo_sqlite, mbstring, redis
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run tests
+        run: composer test
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d /home/runner/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > /home/runner/.ssh/id_ed25519
+          chmod 600 /home/runner/.ssh/id_ed25519
+          printf '%s\n' '116.193.191.110 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEHgQ81SjEb8WQSeRIBDTS3EJQqtYha+jy0VUaiBVLFC' > /home/runner/.ssh/known_hosts
+
+      - name: Upload backend source
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          rsync -az --delete \
+            --exclude='.env' \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='bootstrap/cache/' \
+            --exclude='storage/' \
+            --exclude='vendor/' \
+            -e "ssh -i /home/runner/.ssh/id_ed25519 -p $SSH_PORT" \
+            ./ "$SSH_USER@$SSH_HOST:/opt/apps/chilioil/chilioil-be/"
+
+      - name: Deploy backend
+        env:
+          REBUILD_IMAGES: ${{ inputs.rebuild_images }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -i /home/runner/.ssh/id_ed25519 -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" "REBUILD_IMAGES=$REBUILD_IMAGES bash -se" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/apps/chilioil/chilioil-be
+
+          docker compose config --quiet
+
+          if [ "$REBUILD_IMAGES" = true ]; then
+            docker compose build php queue
+          fi
+
+          docker compose run --rm --no-deps --entrypoint composer php \
+            install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+          docker compose run --rm --no-deps --user www-data --entrypoint sh php -c '
+            php artisan optimize:clear &&
+            php artisan migrate --force &&
+            php artisan config:cache &&
+            php artisan route:cache &&
             php artisan view:cache
-            chmod -R 775 storage/framework storage/logs bootstrap/cache
+          '
+
+          if [ "$REBUILD_IMAGES" = true ]; then
+            docker compose up -d --no-deps --force-recreate php queue
+          else
+            docker compose restart php queue
+          fi
+
+          docker exec chilioil-nginx nginx -t
+          docker exec chilioil-nginx nginx -s reload
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            if curl -fsS http://127.0.0.1:8000/api/health | grep -q '"status":"ok"'; then
+              docker compose ps
+              exit 0
+            fi
+            sleep 5
+          done
+
+          docker compose ps
+          exit 1
+          REMOTE
