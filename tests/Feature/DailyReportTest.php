@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\DailyReport;
 use App\Models\DailyReportCreditor;
+use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Feature;
 use App\Models\PlanFeature;
@@ -284,6 +285,73 @@ class DailyReportTest extends TestCase
             ->assertJsonPath('data.income.total', 276000);
     }
 
+    public function test_summary_uses_reported_income_with_pos_fallback_and_store_expenses(): void
+    {
+        $otherStore = Store::create([
+            'name' => 'Store Lain',
+            'company_id' => $this->company->id,
+        ]);
+        $productCategory = ProductCategory::create([
+            'company_id' => $this->company->id,
+            'name' => 'Makanan',
+            'slug' => 'makanan-summary',
+            'status' => true,
+        ]);
+        $product = Product::create([
+            'store_id' => $this->store->id,
+            'product_category_id' => $productCategory->id,
+            'name' => 'Produk Summary',
+            'code' => 'SUMMARY-1',
+            'selling_type' => 'Sale',
+            'price' => 100000,
+            'status' => true,
+        ]);
+        $expenseCategory = ExpenseCategory::create([
+            'company_id' => $this->company->id,
+            'name' => 'Operasional',
+            'code' => 'SUMMARY-EXPENSE',
+        ]);
+
+        $this->transactionItem($product, $this->store, 'OFFLINE', 'CASH', 100000, '2026-08-23');
+        $this->transactionItem($product, $this->store, 'OFFLINE', 'CASH', 50000, '2026-08-22');
+        $this->transactionItem($product, $otherStore, 'OFFLINE', 'CASH', 999000, '2026-08-22');
+
+        Expense::create([
+            'company_id' => $this->company->id,
+            'store_id' => $this->store->id,
+            'expense_category_id' => $expenseCategory->id,
+            'date' => '2026-08-23',
+            'amount' => 30000,
+        ]);
+        Expense::create([
+            'company_id' => $this->company->id,
+            'store_id' => $otherStore->id,
+            'expense_category_id' => $expenseCategory->id,
+            'date' => '2026-08-23',
+            'amount' => 888000,
+        ]);
+
+        $token = JWTAuth::fromUser($this->admin);
+        $this->withToken($token)
+            ->putJson('/api/v1/daily-reports/2026-08-23/income', [
+                'store_id' => $this->store->id,
+                'amounts' => [
+                    'shopeefood' => 0,
+                    'grabfood' => 0,
+                    'gofood' => 0,
+                    'qris' => 0,
+                    'cash' => 80000,
+                ],
+            ])->assertOk();
+
+        $this->withToken($token)
+            ->getJson('/api/v1/daily-reports/summary?store_id='.$this->store->id)
+            ->assertOk()
+            ->assertJsonPath('data.income', 130000)
+            ->assertJsonPath('data.expense', 30000)
+            ->assertJsonPath('data.balance', 100000);
+    }
+
     public function test_history_is_paginated_by_report_date_for_infinite_scroll(): void
     {
         foreach (range(1, 16) as $day) {
@@ -448,11 +516,12 @@ class DailyReportTest extends TestCase
         string $type,
         string $paymentType,
         int $amount,
+        string $date = '2026-08-23',
     ): void {
         $transaction = Transaction::create([
             'company_id' => $this->company->id,
             'code' => uniqid('TRX'),
-            'date' => '2026-08-23',
+            'date' => $date,
             'total' => $amount,
             'sub_total' => $amount,
             'total_item' => 1,

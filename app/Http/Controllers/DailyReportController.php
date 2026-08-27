@@ -71,6 +71,16 @@ class DailyReportController extends Controller
         );
     }
 
+    public function summary(Request $request): JsonResponse
+    {
+        $storeId = $this->validatedReadStore($request);
+
+        return ApiResponse::success(
+            $this->reports->summary($request->user()->company_id, $storeId),
+            'Summary laporan berhasil dimuat',
+        );
+    }
+
     public function updateRestock(StoreDailyReportRestockRequest $request, string $date): JsonResponse
     {
         $this->ensureWriteAllowed($request, $date);

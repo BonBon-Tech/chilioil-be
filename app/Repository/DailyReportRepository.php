@@ -7,6 +7,7 @@ use App\Models\DailyReportCreditor;
 use App\Models\DailyReportDebtPayment;
 use App\Models\DailyReportRestockItem;
 use App\Models\Expense;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -53,6 +54,40 @@ class DailyReportRepository
             $storeId,
             $report->report_date->format('Y-m-d'),
         ));
+    }
+
+    public function summary(string $companyId, string $storeId): array
+    {
+        $overrides = DailyReport::query()
+            ->where('company_id', $companyId)
+            ->where('store_id', $storeId)
+            ->whereNotNull('shopeefood_amount')
+            ->whereNotNull('grabfood_amount')
+            ->whereNotNull('gofood_amount')
+            ->whereNotNull('qris_amount')
+            ->whereNotNull('cash_amount');
+
+        $reported = (float) (clone $overrides)->sum(DB::raw(
+            'shopeefood_amount + grabfood_amount + gofood_amount + qris_amount + cash_amount'
+        ));
+        $pos = (float) $this->incomeItemsQuery($companyId, $storeId)
+            ->sum('transaction_items.total_price');
+        $replacedPos = (float) $this->incomeItemsQuery($companyId, $storeId)
+            ->whereIn(
+                DB::raw('DATE(transactions.date)'),
+                (clone $overrides)->selectRaw('DATE(report_date)'),
+            )
+            ->sum('transaction_items.total_price');
+        $income = $pos - $replacedPos + $reported;
+        $expense = (float) Expense::where('company_id', $companyId)
+            ->where('store_id', $storeId)
+            ->sum('amount');
+
+        return [
+            'income' => $income,
+            'expense' => $expense,
+            'balance' => $income - $expense,
+        ];
     }
 
     public function updateRestock(string $companyId, string $storeId, string $date, string $creditorId, array $items): array
@@ -292,14 +327,8 @@ class DailyReportRepository
 
     private function incomeSource(string $companyId, string $storeId, string $date): array
     {
-        $rows = DB::table('transaction_items')
-            ->join('transactions', 'transactions.id', '=', 'transaction_items.transaction_id')
-            ->where('transactions.company_id', $companyId)
-            ->where('transaction_items.store_id', $storeId)
+        $rows = $this->incomeItemsQuery($companyId, $storeId)
             ->whereDate('transactions.date', $date)
-            ->where('transactions.status', 'PAID')
-            ->whereNull('transactions.deleted_at')
-            ->whereNull('transaction_items.deleted_at')
             ->groupBy('transactions.type', 'transactions.payment_type')
             ->selectRaw('transactions.type, transactions.payment_type, SUM(transaction_items.total_price) AS total')
             ->get();
@@ -323,5 +352,23 @@ class DailyReportRepository
         }
 
         return $source;
+    }
+
+    private function incomeItemsQuery(string $companyId, string $storeId): Builder
+    {
+        return DB::table('transaction_items')
+            ->join('transactions', 'transactions.id', '=', 'transaction_items.transaction_id')
+            ->where('transactions.company_id', $companyId)
+            ->where('transaction_items.store_id', $storeId)
+            ->where('transactions.status', 'PAID')
+            ->whereNull('transactions.deleted_at')
+            ->whereNull('transaction_items.deleted_at')
+            ->where(function (Builder $query) {
+                $query->whereIn('transactions.type', ['SHOPEEFOOD', 'GRABFOOD', 'GOFOOD'])
+                    ->orWhere(function (Builder $query) {
+                        $query->where('transactions.type', 'OFFLINE')
+                            ->whereIn('transactions.payment_type', ['QRIS', 'CASH']);
+                    });
+            });
     }
 }

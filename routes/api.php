@@ -163,6 +163,7 @@ Route::prefix('/v1')->group(function () {
 
         Route::prefix('daily-reports')->middleware('check.plan:daily-report')->group(function () {
             Route::get('history', [DailyReportController::class, 'history']);
+            Route::get('summary', [DailyReportController::class, 'summary']);
             Route::get('creditors', [DailyReportController::class, 'creditors']);
             Route::post('creditors', [DailyReportController::class, 'storeCreditor'])->middleware('admin');
             Route::put('creditors/{creditor}', [DailyReportController::class, 'updateCreditor'])->middleware('admin');
