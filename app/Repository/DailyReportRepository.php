@@ -82,11 +82,16 @@ class DailyReportRepository
         $expense = (float) Expense::where('company_id', $companyId)
             ->where('store_id', $storeId)
             ->sum('amount');
+        $debt = array_sum(array_column(
+            $this->debtRows($companyId, $storeId, today()->toDateString()),
+            'closing_balance',
+        ));
 
         return [
             'income' => $income,
             'expense' => $expense,
             'balance' => $income - $expense,
+            'debt' => $debt,
         ];
     }
 

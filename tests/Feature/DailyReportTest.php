@@ -344,12 +344,23 @@ class DailyReportTest extends TestCase
                 ],
             ])->assertOk();
 
+        $creditor = $this->creditor();
+        $this->withToken($token)
+            ->putJson('/api/v1/daily-reports/2026-08-23/debt', [
+                'store_id' => $this->store->id,
+                'payments' => [[
+                    'creditor_id' => $creditor->id,
+                    'amount' => 20000,
+                ]],
+            ])->assertOk();
+
         $this->withToken($token)
             ->getJson('/api/v1/daily-reports/summary?store_id='.$this->store->id)
             ->assertOk()
             ->assertJsonPath('data.income', 130000)
             ->assertJsonPath('data.expense', 30000)
-            ->assertJsonPath('data.balance', 100000);
+            ->assertJsonPath('data.balance', 100000)
+            ->assertJsonPath('data.debt', 80000);
     }
 
     public function test_history_is_paginated_by_report_date_for_infinite_scroll(): void
