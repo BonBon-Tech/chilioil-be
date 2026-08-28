@@ -63,11 +63,14 @@ class Company extends Model
             ->exists();
     }
 
-    public function getActiveFeatures()
+    public function getActiveFeatures(?array $slugs = null)
     {
         return Feature::whereHas('planFeatures', function ($q) {
             $q->where('plan', $this->plan)->where('is_active', true);
-        })->orderBy('sort_order')->get();
+        })
+            ->when($slugs, fn($query) => $query->whereIn('slug', $slugs))
+            ->orderBy('sort_order')
+            ->get();
     }
 
     public function users(): HasMany

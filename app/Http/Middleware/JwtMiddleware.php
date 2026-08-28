@@ -15,8 +15,16 @@ class JwtMiddleware
         JwtClaims::flush(); // Clear per-request cache
 
         try {
-            JWTAuth::parseToken()->authenticate();
+            $user = JWTAuth::parseToken()->authenticate();
         } catch (Exception $e) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        if (!$user ||
+            !JwtClaims::role() ||
+            JwtClaims::role() !== $user->role?->name ||
+            JwtClaims::companyId() !== $user->company_id ||
+            JwtClaims::storeId() !== $user->store_id) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

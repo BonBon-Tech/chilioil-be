@@ -16,11 +16,19 @@ class UserRepository
     private function scopedQuery()
     {
         $query = User::with(['role', 'assignedStore']);
-        $companyId = $this->getCompanyId();
-        if ($companyId) {
-            $query->where('company_id', $companyId);
+
+        if (JwtClaims::isOwner()) {
+            return $query;
         }
-        return $query;
+
+        $companyId = $this->getCompanyId();
+        if (!$companyId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query
+            ->where('company_id', $companyId)
+            ->whereDoesntHave('role', fn($role) => $role->where('name', 'owner'));
     }
 
     public function all()

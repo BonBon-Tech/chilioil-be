@@ -73,7 +73,11 @@ class FeatureController extends Controller
             return ApiResponse::success([], 'No company found');
         }
 
-        $features = $company->getActiveFeatures();
+        $features = $company->getActiveFeatures(
+            $user->role?->name === 'staff'
+                ? ['pos', 'sales', 'products', 'stock-opname', 'expenses', 'daily-report']
+                : null
+        );
         return ApiResponse::success($features, 'User features fetched');
     }
 }

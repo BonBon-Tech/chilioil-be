@@ -7,6 +7,8 @@ use App\Repository\StockOpnameRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StockOpnameController extends Controller
 {
@@ -25,27 +27,32 @@ class StockOpnameController extends Controller
     {
         $validated = $request->validate([
             'opname_date'         => 'required|date',
-            'store_id'            => 'nullable|string|exists:stores,id',
-            'product_category_id' => 'nullable|string|exists:product_categories,id',
+            'store_id' => ['nullable', 'string', Rule::exists('stores', 'id')->where('company_id', $request->get('company_id'))],
+            'product_category_id' => ['nullable', 'string', Rule::exists('product_categories', 'id')->where('company_id', $request->get('company_id'))],
             'notes'               => 'nullable|string|max:1000',
         ]);
 
-        $validated['started_by'] = Auth::id();
+        $user = Auth::user();
+        if ($user?->role?->name === 'staff') {
+            if (!$user->store_id) {
+                return ApiResponse::error('Forbidden', null, 403);
+            }
 
-        $conflict = $this->repository->checkPendingConflict($validated['store_id'] ?? null);
-        if ($conflict) {
-            return ApiResponse::error($conflict, null, 422);
+            if (!empty($validated['store_id']) && $validated['store_id'] !== $user->store_id) {
+                throw ValidationException::withMessages([
+                    'store_id' => ['Staff hanya dapat membuat stock opname untuk toko yang ditugaskan.'],
+                ]);
+            }
+
+            $validated['store_id'] = $user->store_id;
         }
 
-        $opname = $this->repository->create($validated);
+        $validated['started_by'] = $user->id;
 
-        if ($opname->items->isEmpty()) {
-            $opname->forceDelete();
-            return ApiResponse::error(
-                'Tidak ada produk pembelian yang ditemukan untuk filter yang dipilih.',
-                null,
-                422
-            );
+        try {
+            $opname = $this->repository->create($validated);
+        } catch (\DomainException $exception) {
+            return ApiResponse::error($exception->getMessage(), null, 422);
         }
 
         return ApiResponse::success($opname, 'Stock opname berhasil dibuat', 201);

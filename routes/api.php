@@ -84,39 +84,61 @@ Route::prefix('/v1')->group(function () {
         Route::post('images', [ImageController::class, 'store']);
 
         // Always accessible features (basic plan)
-        Route::resource('roles', RoleController::class);
+        Route::get('roles', [RoleController::class, 'index']);
+        Route::get('roles/{id}', [RoleController::class, 'show']);
+        Route::middleware('owner')->group(function () {
+            Route::post('roles', [RoleController::class, 'store']);
+            Route::put('roles/{id}', [RoleController::class, 'update']);
+            Route::patch('roles/{id}', [RoleController::class, 'update']);
+            Route::delete('roles/{id}', [RoleController::class, 'destroy']);
+        });
 
         Route::get('stores', [StoreController::class, 'index']);
         Route::get('stores/{id}', [StoreController::class, 'show']);
-        Route::post('stores', [StoreController::class, 'store']);
-        Route::put('stores/{id}', [StoreController::class, 'update']);
-        Route::delete('stores/{id}', [StoreController::class, 'destroy']);
+        Route::middleware('admin')->group(function () {
+            Route::post('stores', [StoreController::class, 'store']);
+            Route::put('stores/{id}', [StoreController::class, 'update']);
+            Route::delete('stores/{id}', [StoreController::class, 'destroy']);
+        });
 
         Route::get('product/categories', [ProductCategoryController::class, 'index']);
         Route::get('product/categories/{id}', [ProductCategoryController::class, 'show']);
-        Route::post('product/categories', [ProductCategoryController::class, 'store']);
-        Route::put('product/categories/{id}', [ProductCategoryController::class, 'update']);
-        Route::delete('product/categories/{id}', [ProductCategoryController::class, 'destroy']);
+        Route::middleware('admin')->group(function () {
+            Route::post('product/categories', [ProductCategoryController::class, 'store']);
+            Route::put('product/categories/{id}', [ProductCategoryController::class, 'update']);
+            Route::delete('product/categories/{id}', [ProductCategoryController::class, 'destroy']);
+        });
 
         Route::get('products', [ProductController::class, 'index']);
         Route::get('products/{id}', [ProductController::class, 'show']);
-        Route::post('products', [ProductController::class, 'store']);
-        Route::put('products/{id}', [ProductController::class, 'update']);
-        Route::patch('products/{id}/status', [ProductController::class, 'toggleStatus']);
-        Route::delete('products/{id}', [ProductController::class, 'destroy']);
+        Route::middleware('admin')->group(function () {
+            Route::post('products', [ProductController::class, 'store']);
+            Route::put('products/{id}', [ProductController::class, 'update']);
+            Route::patch('products/{id}/status', [ProductController::class, 'toggleStatus']);
+            Route::delete('products/{id}', [ProductController::class, 'destroy']);
+        });
 
         Route::apiResource('transactions', TransactionController::class);
 
-        Route::get('dashboard/summary', [DashboardController::class, 'summary']);
-        Route::get('dashboard/product-sales', [DashboardController::class, 'productSales']);
-        Route::get('dashboard/store-sales', [DashboardController::class, 'storeSales']);
-        Route::get('dashboard/store-online-sales', [DashboardController::class, 'storeOnlineSales']);
-        Route::get('dashboard/store-daily-online-sales', [DashboardController::class, 'storeDailyOnlineSales']);
-        Route::get('dashboard/store-daily-offline-sales', [DashboardController::class, 'storeDailyOfflineSales']);
-        Route::get('dashboard/weekly-traffic', [DashboardController::class, 'weeklyTraffic']);
-        Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);
+        Route::middleware('admin')->group(function () {
+            Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+            Route::get('dashboard/product-sales', [DashboardController::class, 'productSales']);
+            Route::get('dashboard/store-sales', [DashboardController::class, 'storeSales']);
+            Route::get('dashboard/store-online-sales', [DashboardController::class, 'storeOnlineSales']);
+            Route::get('dashboard/store-daily-online-sales', [DashboardController::class, 'storeDailyOnlineSales']);
+            Route::get('dashboard/store-daily-offline-sales', [DashboardController::class, 'storeDailyOfflineSales']);
+            Route::get('dashboard/weekly-traffic', [DashboardController::class, 'weeklyTraffic']);
+            Route::get('dashboard/top-products', [DashboardController::class, 'topProducts']);
+        });
 
-        Route::apiResource('wifi-credentials', WifiCredentialController::class);
+        Route::get('wifi-credentials', [WifiCredentialController::class, 'index']);
+        Route::get('wifi-credentials/{wifi_credential}', [WifiCredentialController::class, 'show']);
+        Route::middleware('admin')->group(function () {
+            Route::post('wifi-credentials', [WifiCredentialController::class, 'store']);
+            Route::put('wifi-credentials/{wifi_credential}', [WifiCredentialController::class, 'update']);
+            Route::patch('wifi-credentials/{wifi_credential}', [WifiCredentialController::class, 'update']);
+            Route::delete('wifi-credentials/{wifi_credential}', [WifiCredentialController::class, 'destroy']);
+        });
 
         // Admin-only routes
         Route::middleware('admin')->group(function () {
@@ -137,14 +159,14 @@ Route::prefix('/v1')->group(function () {
         });
 
         // Stock Opname (Pro plan)
-        Route::middleware('check.plan:stock-opname')->group(function () {
+        Route::middleware(['tenant', 'check.plan:stock-opname'])->group(function () {
             Route::get('stock-opnames', [StockOpnameController::class, 'index']);
             Route::post('stock-opnames', [StockOpnameController::class, 'store']);
             Route::get('stock-opnames/{id}', [StockOpnameController::class, 'show']);
             Route::put('stock-opnames/{id}', [StockOpnameController::class, 'update']);
-            Route::delete('stock-opnames/{id}', [StockOpnameController::class, 'destroy']);
             Route::put('stock-opnames/{id}/items/{itemId}', [StockOpnameController::class, 'updateItem']);
             Route::post('stock-opnames/{id}/cancel', [StockOpnameController::class, 'cancel']);
+            Route::delete('stock-opnames/{id}', [StockOpnameController::class, 'destroy']);
 
             // Admin only: approve & reject
             Route::middleware('admin')->group(function () {
@@ -156,9 +178,11 @@ Route::prefix('/v1')->group(function () {
         Route::middleware('check.plan:expense-categories')->group(function () {
             Route::get('expense/categories', [ExpenseCategoryController::class, 'index']);
             Route::get('expense/categories/{id}', [ExpenseCategoryController::class, 'show']);
-            Route::post('expense/categories', [ExpenseCategoryController::class, 'store']);
-            Route::put('expense/categories/{id}', [ExpenseCategoryController::class, 'update']);
-            Route::delete('expense/categories/{id}', [ExpenseCategoryController::class, 'destroy']);
+            Route::middleware('admin')->group(function () {
+                Route::post('expense/categories', [ExpenseCategoryController::class, 'store']);
+                Route::put('expense/categories/{id}', [ExpenseCategoryController::class, 'update']);
+                Route::delete('expense/categories/{id}', [ExpenseCategoryController::class, 'destroy']);
+            });
         });
 
         Route::prefix('daily-reports')->middleware('check.plan:daily-report')->group(function () {
@@ -174,7 +198,7 @@ Route::prefix('/v1')->group(function () {
         });
 
         // Reports
-        Route::prefix('reports')->group(function () {
+        Route::prefix('reports')->middleware(['admin', 'check.plan:reporting'])->group(function () {
             Route::get('sales-summary', [ReportController::class, 'salesSummary']);
             Route::get('sales-by-type', [ReportController::class, 'salesByType']);
             Route::get('sales-by-payment', [ReportController::class, 'salesByPayment']);
@@ -186,7 +210,7 @@ Route::prefix('/v1')->group(function () {
         });
 
         // Exports
-        Route::prefix('export')->group(function () {
+        Route::prefix('export')->middleware(['admin', 'check.plan:export-transaction'])->group(function () {
             Route::get('transactions', [ExportController::class, 'exportTransactions']);
             Route::get('expenses', [ExportController::class, 'exportExpenses']);
             Route::get('products', [ExportController::class, 'exportProducts']);

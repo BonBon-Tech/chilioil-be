@@ -3,7 +3,6 @@
 namespace App\Http\Middleware;
 
 use App\Helpers\ApiResponse;
-use App\Helpers\JwtClaims;
 use Closure;
 use Illuminate\Http\Request;
 
@@ -11,12 +10,15 @@ class CompanyScope
 {
     public function handle(Request $request, Closure $next)
     {
+        $user = $request->user();
+        $role = $user?->role?->name;
+        $companyId = $user?->company_id;
+
         // Owner can see all companies — skip scoping
-        if (JwtClaims::isOwner()) {
+        if ($role === 'owner') {
             return $next($request);
         }
 
-        $companyId = JwtClaims::companyId();
         if (!$companyId) {
             return ApiResponse::error('User tidak terdaftar di perusahaan manapun', null, 403);
         }

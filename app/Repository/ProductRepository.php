@@ -3,8 +3,10 @@
 namespace App\Repository;
 
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Store;
 use App\Traits\UsesCompanyScope;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class ProductRepository
 {
@@ -74,6 +76,8 @@ class ProductRepository
 
     public function create(array $data): Product
     {
+        $this->assertCompanyRelations($data);
+
         return Product::create($data);
     }
 
@@ -83,6 +87,8 @@ class ProductRepository
         if (!$product) {
             return null;
         }
+
+        $this->assertCompanyRelations($data);
         $product->update($data);
         return $product->fresh(['store', 'productCategory']);
     }
@@ -94,5 +100,21 @@ class ProductRepository
             return false;
         }
         return $product->delete();
+    }
+
+    private function assertCompanyRelations(array $data): void
+    {
+        $companyId = $this->getCompanyId();
+        if (!$companyId) {
+            throw (new ModelNotFoundException)->setModel(Product::class);
+        }
+
+        if (isset($data['store_id'])) {
+            Store::where('company_id', $companyId)->findOrFail($data['store_id']);
+        }
+
+        if (isset($data['product_category_id'])) {
+            ProductCategory::where('company_id', $companyId)->findOrFail($data['product_category_id']);
+        }
     }
 }

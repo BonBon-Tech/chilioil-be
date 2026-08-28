@@ -10,6 +10,9 @@ use App\Models\Product;
 use App\Models\Transaction;
 use App\Traits\UsesCompanyScope;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TransactionRepository
@@ -118,52 +121,59 @@ class TransactionRepository
 
     public function create(array $data): Transaction
     {
-        $data['code'] = $this->generateTransactionCode($data['date']);
-        $companyId = JwtClaims::companyId();
+        return DB::transaction(function () use ($data) {
+            $products = $this->resolveProducts($data['items']);
+            $data['code'] = $this->generateTransactionCode($data['date']);
+            $companyId = JwtClaims::companyId();
 
-        $transaction = Transaction::create([
-            'code' => $data['code'],
-            'company_id' => $companyId,
-            'date' => $data['date'],
-            'customer_name' => $data['customer_name'] ?? null,
-            'type' => $data['type'],
-            'payment_type' => $data['payment_type'],
-            'status' => $data['status'],
-            'total' => 0,
-            'sub_total' => 0,
-            'total_item' => 0,
-            'online_transaction_revenue' => $data['online_transaction_revenue'] ?? 0
-        ]);
+            $transaction = Transaction::create([
+                'code' => $data['code'],
+                'company_id' => $companyId,
+                'date' => $data['date'],
+                'customer_name' => $data['customer_name'] ?? null,
+                'type' => $data['type'],
+                'payment_type' => $data['payment_type'],
+                'status' => $data['status'],
+                'total' => 0,
+                'sub_total' => 0,
+                'total_item' => 0,
+                'online_transaction_revenue' => $data['online_transaction_revenue'] ?? 0
+            ]);
 
-        $this->createTransactionItems($transaction, $data['items']);
-        $this->calculateTotals($transaction);
+            $this->createTransactionItems($transaction, $data['items'], $products);
+            $this->calculateTotals($transaction);
 
-        $this->dispatchOnlineTransactionDetailCreation($transaction);
-        $this->dispatchCashFlowCreation($transaction);
+            $this->dispatchOnlineTransactionDetailCreation($transaction);
+            $this->dispatchCashFlowCreation($transaction);
 
-        return $transaction->load(['transactionItems.product', 'transactionItems.store']);
+            return $transaction->load(['transactionItems.product', 'transactionItems.store']);
+        });
     }
 
     public function update(string $id, array $data): ?Transaction
     {
-        $transaction = $this->scopedQuery()->find($id);
-        if (!$transaction) {
-            return null;
-        }
+        return DB::transaction(function () use ($id, $data) {
+            $transaction = $this->scopedQuery()->lockForUpdate()->find($id);
+            if (!$transaction) {
+                return null;
+            }
 
-        $updateData = array_intersect_key($data, array_flip(['date', 'customer_name', 'type', 'payment_type', 'status']));
-        $transaction->update($updateData);
+            $products = isset($data['items']) ? $this->resolveProducts($data['items']) : null;
+            $updateData = array_intersect_key($data, array_flip(['date', 'customer_name', 'type', 'payment_type', 'status']));
+            $transaction->update($updateData);
 
-        if (isset($data['items'])) {
-            $transaction->transactionItems()->delete();
-            $this->createTransactionItems($transaction, $data['items']);
-            $this->calculateTotals($transaction);
-        }
+            if (isset($data['items'])) {
+                $transaction->transactionItems()->delete();
+                $this->createTransactionItems($transaction, $data['items'], $products);
+                $transaction->unsetRelation('transactionItems');
+                $this->calculateTotals($transaction);
+            }
 
-        $this->dispatchOnlineTransactionDetailCreation($transaction);
-        $this->dispatchCashFlowCreation($transaction);
+            $this->dispatchOnlineTransactionDetailCreation($transaction);
+            $this->dispatchCashFlowCreation($transaction);
 
-        return $transaction->load(['transactionItems.product', 'transactionItems.store']);
+            return $transaction->load(['transactionItems.product', 'transactionItems.store']);
+        });
     }
 
     public function delete(string $id): bool
@@ -198,14 +208,47 @@ class TransactionRepository
         });
     }
 
-    private function createTransactionItems(Transaction $transaction, array $items): void
+    private function resolveProducts(array $items): Collection
+    {
+        $user = Auth::user();
+        $companyId = $user?->company_id;
+        $productIds = [];
+
+        foreach ($items as $item) {
+            if (!is_array($item) || !isset($item['product_id']) || !is_string($item['product_id']) || $item['product_id'] === '') {
+                throw (new ModelNotFoundException)->setModel(Product::class);
+            }
+            $productIds[] = strtolower($item['product_id']);
+        }
+
+        $productIds = array_values(array_unique($productIds));
+
+        if (!$companyId || $productIds === []) {
+            throw (new ModelNotFoundException)->setModel(Product::class, $productIds);
+        }
+
+        $products = Product::query()
+            ->whereIn('id', $productIds)
+            ->whereHas('store', fn($stores) => $stores->where('company_id', $companyId))
+            ->when($user?->role?->name === 'staff', fn($query) => $query->where('store_id', $user->store_id))
+            ->get()
+            ->keyBy(fn($product) => strtolower($product->id));
+
+        if ($products->count() !== count($productIds)) {
+            throw (new ModelNotFoundException)->setModel(Product::class, $productIds);
+        }
+
+        return $products;
+    }
+
+    private function createTransactionItems(Transaction $transaction, array $items, Collection $products): void
     {
         foreach ($items as $item) {
-            $product = Product::find($item['product_id']);
+            $product = $products->get(strtolower($item['product_id']));
             $totalPrice = $item['price'] * $item['qty'];
 
             $transaction->transactionItems()->create([
-                'product_id' => $item['product_id'],
+                'product_id' => $product->id,
                 'image_path' => $product->image_path,
                 'store_id' => $product->store_id,
                 'name' => $product->name,
