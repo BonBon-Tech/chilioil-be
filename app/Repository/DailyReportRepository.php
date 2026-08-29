@@ -92,6 +92,11 @@ class DailyReportRepository
             $this->debtRows($companyId, $storeId, today()->toDateString()),
             'closing_balance',
         ));
+        $debtPaid = (float) DailyReportDebtPayment::query()
+            ->join('daily_reports', 'daily_reports.id', '=', 'daily_report_debt_payments.daily_report_id')
+            ->where('daily_reports.company_id', $companyId)
+            ->where('daily_reports.store_id', $storeId)
+            ->sum('daily_report_debt_payments.amount');
 
         $cash = $this->cash->overview($companyId, $storeId);
 
@@ -100,6 +105,7 @@ class DailyReportRepository
             'expense' => $expense,
             'balance' => $income - $expense,
             'debt' => $debt,
+            'debt_paid' => $debtPaid,
             'accounts' => $cash['accounts'],
             'cash_total' => $cash['total'],
         ];

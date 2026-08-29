@@ -362,7 +362,8 @@ class DailyReportTest extends TestCase
             ->assertJsonPath('data.income', 130000)
             ->assertJsonPath('data.expense', 30000)
             ->assertJsonPath('data.balance', 100000)
-            ->assertJsonPath('data.debt', 80000);
+            ->assertJsonPath('data.debt', 80000)
+            ->assertJsonPath('data.debt_paid', 20000);
     }
 
     public function test_history_is_paginated_by_report_date_for_infinite_scroll(): void
