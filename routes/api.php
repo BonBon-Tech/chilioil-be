@@ -188,11 +188,21 @@ Route::prefix('/v1')->group(function () {
         Route::prefix('daily-reports')->middleware('check.plan:daily-report')->group(function () {
             Route::get('history', [DailyReportController::class, 'history']);
             Route::get('summary', [DailyReportController::class, 'summary']);
+            Route::get('accounts', [DailyReportController::class, 'accounts']);
+            Route::post('accounts/setup', [DailyReportController::class, 'setupAccounts'])->middleware('admin');
+            Route::post('accounts', [DailyReportController::class, 'storeAccount'])->middleware('admin');
+            Route::put('accounts/{account}', [DailyReportController::class, 'updateAccount'])->middleware('admin');
+            Route::put('channel-mappings', [DailyReportController::class, 'updateMappings'])->middleware('admin');
+            Route::post('balance/transfers', [DailyReportController::class, 'transfer']);
+            Route::post('balance/adjustments', [DailyReportController::class, 'adjust'])->middleware('admin');
             Route::get('creditors', [DailyReportController::class, 'creditors']);
             Route::post('creditors', [DailyReportController::class, 'storeCreditor'])->middleware('admin');
             Route::put('creditors/{creditor}', [DailyReportController::class, 'updateCreditor'])->middleware('admin');
             Route::get('{date}', [DailyReportController::class, 'show']);
             Route::put('{date}/restock', [DailyReportController::class, 'updateRestock']);
+            Route::post('{date}/expenses', [DailyReportController::class, 'appendExpenses']);
+            Route::put('{date}/expenses', [DailyReportController::class, 'updateExpenses']);
+            Route::put('{date}/expenses/{item}', [DailyReportController::class, 'updateExpenseItem']);
             Route::put('{date}/debt', [DailyReportController::class, 'updateDebt']);
             Route::put('{date}/income', [DailyReportController::class, 'updateIncome']);
         });

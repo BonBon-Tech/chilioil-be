@@ -14,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class DailyReportRepository
 {
+    public function __construct(private CashLedgerRepository $cash) {}
+
     public function createCreditor(string $companyId, array $data): DailyReportCreditor
     {
         return DailyReportCreditor::create([
@@ -82,16 +84,24 @@ class DailyReportRepository
         $expense = (float) Expense::where('company_id', $companyId)
             ->where('store_id', $storeId)
             ->sum('amount');
+        $expense += (float) \App\Models\CashLedgerEntry::where('company_id', $companyId)
+            ->where('store_id', $storeId)
+            ->where('type', 'transfer_fee')
+            ->sum('amount');
         $debt = array_sum(array_column(
             $this->debtRows($companyId, $storeId, today()->toDateString()),
             'closing_balance',
         ));
+
+        $cash = $this->cash->overview($companyId, $storeId);
 
         return [
             'income' => $income,
             'expense' => $expense,
             'balance' => $income - $expense,
             'debt' => $debt,
+            'accounts' => $cash['accounts'],
+            'cash_total' => $cash['total'],
         ];
     }
 
@@ -131,6 +141,8 @@ class DailyReportRepository
                 DailyReportRestockItem::create([
                     ...$item,
                     'daily_report_id' => $report->id,
+                    'creditor_id' => $creditorId,
+                    'entry_type' => 'legacy_restock',
                     'expense_id' => $expense->id,
                 ]);
             }
@@ -139,12 +151,14 @@ class DailyReportRepository
         return $this->detail($companyId, $storeId, $date);
     }
 
-    public function updateDebt(string $companyId, string $storeId, string $date, array $payments): array
+    public function updateDebt(string $companyId, string $storeId, string $date, array $payments, ?string $userId = null): array
     {
-        DB::transaction(function () use ($companyId, $storeId, $date, $payments) {
+        DB::transaction(function () use ($companyId, $storeId, $date, $payments, $userId) {
             $report = $this->report($companyId, $storeId, $date);
             $submittedIds = collect($payments)->pluck('creditor_id');
 
+            $removed = $report->debtPayments()->whereNotIn('creditor_id', $submittedIds)->pluck('id');
+            \App\Models\CashLedgerEntry::where('reference_type', 'debt_payment')->whereIn('reference_id', $removed)->delete();
             $report->debtPayments()->whereNotIn('creditor_id', $submittedIds)->delete();
 
             foreach ($payments as $payment) {
@@ -156,44 +170,115 @@ class DailyReportRepository
                 }
 
                 if ((float) $payment['amount'] === 0.0) {
+                    $ids = $report->debtPayments()->where('creditor_id', $payment['creditor_id'])->pluck('id');
+                    \App\Models\CashLedgerEntry::where('reference_type', 'debt_payment')->whereIn('reference_id', $ids)->delete();
                     $report->debtPayments()->where('creditor_id', $payment['creditor_id'])->delete();
 
                     continue;
                 }
 
-                DailyReportDebtPayment::updateOrCreate(
+                $saved = DailyReportDebtPayment::updateOrCreate(
                     ['daily_report_id' => $report->id, 'creditor_id' => $payment['creditor_id']],
-                    ['amount' => $payment['amount'], 'note' => $payment['note'] ?? null],
+                    ['cash_account_id' => $payment['account_id'] ?? null, 'amount' => $payment['amount'], 'note' => $payment['note'] ?? null],
                 );
+                if (! empty($payment['account_id'])) {
+                    $this->cash->syncDebtPayment($report, $saved, $payment['account_id'], $userId);
+                }
             }
         });
 
         return $this->detail($companyId, $storeId, $date);
     }
 
-    public function updateIncome(string $companyId, string $storeId, string $date, array $amounts): array
+    public function updateIncome(string $companyId, string $storeId, string $date, array $amounts, ?string $userId = null): array
     {
-        $report = $this->report($companyId, $storeId, $date);
-        $report->update([
-            'shopeefood_amount' => $amounts['shopeefood'],
-            'grabfood_amount' => $amounts['grabfood'],
-            'gofood_amount' => $amounts['gofood'],
-            'qris_amount' => $amounts['qris'],
-            'cash_amount' => $amounts['cash'],
-        ]);
+        DB::transaction(function () use ($companyId, $storeId, $date, $amounts, $userId) {
+            $report = $this->report($companyId, $storeId, $date);
+            $report->update([
+                'shopeefood_amount' => $amounts['shopeefood'],
+                'grabfood_amount' => $amounts['grabfood'],
+                'gofood_amount' => $amounts['gofood'],
+                'qris_amount' => $amounts['qris'],
+                'cash_amount' => $amounts['cash'],
+            ]);
+            $this->cash->syncIncome($report->refresh(), $amounts, $userId);
+        });
+
+        return $this->detail($companyId, $storeId, $date);
+    }
+
+    public function updateExpenses(string $companyId, string $storeId, string $date, array $items, ?string $userId = null): array
+    {
+        DB::transaction(function () use ($companyId, $storeId, $date, $items, $userId) {
+            $report = $this->report($companyId, $storeId, $date);
+            $oldItems = $report->restockItems()->where('entry_type', 'expense')->get();
+            $expenseIds = $oldItems->pluck('expense_id')->filter();
+            \App\Models\CashLedgerEntry::where('reference_type', 'expense')->whereIn('reference_id', $expenseIds)->delete();
+            Expense::where('company_id', $companyId)->whereIn('id', $expenseIds)->delete();
+            $report->restockItems()->where('entry_type', 'expense')->delete();
+
+            foreach ($items as $item) {
+                $this->createExpenseItem($report, $companyId, $storeId, $date, $item, $userId);
+            }
+        });
+
+        return $this->detail($companyId, $storeId, $date);
+    }
+
+    public function appendExpenses(string $companyId, string $storeId, string $date, array $items, ?string $userId = null): array
+    {
+        DB::transaction(function () use ($companyId, $storeId, $date, $items, $userId) {
+            $report = $this->report($companyId, $storeId, $date);
+            foreach ($items as $item) {
+                $this->createExpenseItem($report, $companyId, $storeId, $date, $item, $userId);
+            }
+        });
+
+        return $this->detail($companyId, $storeId, $date);
+    }
+
+    public function updateExpenseItem(string $companyId, string $storeId, string $date, string $itemId, array $item, ?string $userId = null): array
+    {
+        DB::transaction(function () use ($companyId, $storeId, $date, $itemId, $item, $userId) {
+            $report = $this->report($companyId, $storeId, $date);
+            $dailyItem = $report->restockItems()->where('entry_type', 'expense')->findOrFail($itemId);
+            $expense = Expense::where('company_id', $companyId)->where('store_id', $storeId)->findOrFail($dailyItem->expense_id);
+            $creditor = ! empty($item['creditor_id'])
+                ? DailyReportCreditor::where('company_id', $companyId)->where('store_id', $storeId)->findOrFail($item['creditor_id'])
+                : null;
+
+            $expense->update([
+                'expense_category_id' => $item['expense_category_id'],
+                'amount' => $item['amount'],
+                'reference' => $creditor?->name,
+                'description' => $this->expenseDescription($item),
+            ]);
+            $dailyItem->update([
+                'creditor_id' => $creditor?->id,
+                'expense_category_id' => $item['expense_category_id'],
+                'name' => $item['name'],
+                'quantity' => $item['quantity'] ?? null,
+                'unit' => $item['unit'] ?? null,
+                'amount' => $item['amount'],
+            ]);
+            \App\Models\CashLedgerEntry::where('reference_type', 'expense')->where('reference_id', $expense->id)->delete();
+            if (! $creditor) {
+                $this->cash->syncExpense($expense->refresh(), $item['allocations'], $userId);
+            }
+        });
 
         return $this->detail($companyId, $storeId, $date);
     }
 
     public function detail(string $companyId, string $storeId, string $date): array
     {
-        $report = DailyReport::with(['restockItems', 'restockCreditor'])
+        $report = DailyReport::with(['restockItems.creditor', 'restockItems.expenseCategory', 'restockCreditor'])
             ->where('company_id', $companyId)
             ->where('store_id', $storeId)
             ->whereDate('report_date', $date)
             ->first();
 
-        $items = $report?->restockItems->map(fn (DailyReportRestockItem $item) => [
+        $items = $report?->restockItems->where('entry_type', 'legacy_restock')->map(fn (DailyReportRestockItem $item) => [
             'id' => $item->id,
             'name' => $item->name,
             'quantity' => $item->quantity === null ? null : (float) $item->quantity,
@@ -201,6 +286,26 @@ class DailyReportRepository
             'expense_category_id' => $item->expense_category_id,
             'amount' => (float) $item->amount,
         ])->values()->all() ?? [];
+
+        $expenseItems = $report?->restockItems->map(function (DailyReportRestockItem $item) use ($companyId, $storeId) {
+            $allocations = $item->expense_id
+                ? \App\Models\CashLedgerEntry::where('company_id', $companyId)->where('store_id', $storeId)
+                    ->where('reference_type', 'expense')->where('reference_id', $item->expense_id)
+                    ->get()->map(fn ($entry) => ['account_id' => $entry->source_account_id, 'amount' => (float) $entry->amount])->all()
+                : [];
+
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'quantity' => $item->quantity === null ? null : (float) $item->quantity,
+                'unit' => $item->unit,
+                'expense_category_id' => $item->expense_category_id,
+                'expense_category_name' => $item->expenseCategory?->name,
+                'amount' => (float) $item->amount,
+                'creditor' => $item->creditor,
+                'allocations' => $allocations,
+            ];
+        })->values()->all() ?? [];
 
         $source = $this->incomeSource($companyId, $storeId, $date);
         $reported = [];
@@ -220,12 +325,17 @@ class DailyReportRepository
                 'items' => $items,
                 'total' => array_sum(array_column($items, 'amount')),
             ],
+            'expenses' => [
+                'items' => $expenseItems,
+                'total' => array_sum(array_column($expenseItems, 'amount')),
+            ],
             'debt' => $this->debtRows($companyId, $storeId, $date),
             'income' => [
                 'source' => $source,
                 'reported' => $reported,
                 'total' => array_sum($reported),
             ],
+            'balance' => $this->cash->overview($companyId, $storeId, $date),
         ];
     }
 
@@ -252,7 +362,7 @@ class DailyReportRepository
             ->join('daily_reports', 'daily_reports.id', '=', 'daily_report_restock_items.daily_report_id')
             ->where('daily_reports.company_id', $companyId)
             ->where('daily_reports.store_id', $storeId)
-            ->where('daily_reports.restock_creditor_id', $creditorId)
+            ->whereRaw('COALESCE(daily_report_restock_items.creditor_id, daily_reports.restock_creditor_id) = ?', [$creditorId])
             ->whereDate('daily_reports.report_date', '<=', $date)
             ->whereNull('daily_report_restock_items.deleted_at')
             ->sum('daily_report_restock_items.amount');
@@ -280,8 +390,9 @@ class DailyReportRepository
         $restockToday = $this->restockTotals($companyId, $storeId, '=', $date);
         $paidBefore = $this->paymentTotals($companyId, $storeId, '<', $date);
         $paidToday = $this->paymentTotals($companyId, $storeId, '=', $date);
+        $paymentAccounts = $this->paymentAccounts($companyId, $storeId, $date);
 
-        return $creditors->map(function (DailyReportCreditor $creditor) use ($restockBefore, $restockToday, $paidBefore, $paidToday) {
+        return $creditors->map(function (DailyReportCreditor $creditor) use ($restockBefore, $restockToday, $paidBefore, $paidToday, $paymentAccounts) {
             $id = $creditor->id;
             $opening = (float) $creditor->opening_balance
                 + ($restockBefore[$id] ?? 0)
@@ -295,6 +406,7 @@ class DailyReportRepository
                 'opening_balance' => $opening,
                 'restock' => $restock,
                 'payment' => $payment,
+                'account_id' => $paymentAccounts[$id] ?? null,
                 'closing_balance' => $opening + $restock - $payment,
                 'is_active' => $creditor->is_active,
             ];
@@ -309,9 +421,9 @@ class DailyReportRepository
             ->where('daily_reports.store_id', $storeId)
             ->whereDate('daily_reports.report_date', $operator, $date)
             ->whereNull('daily_report_restock_items.deleted_at')
-            ->groupBy('daily_reports.restock_creditor_id')
-            ->selectRaw('daily_reports.restock_creditor_id, SUM(daily_report_restock_items.amount) AS total_amount')
-            ->pluck('total_amount', 'daily_reports.restock_creditor_id')
+            ->groupByRaw('COALESCE(daily_report_restock_items.creditor_id, daily_reports.restock_creditor_id)')
+            ->selectRaw('COALESCE(daily_report_restock_items.creditor_id, daily_reports.restock_creditor_id) AS creditor_id, SUM(daily_report_restock_items.amount) AS total_amount')
+            ->pluck('total_amount', 'creditor_id')
             ->map(fn ($value) => (float) $value)
             ->all();
     }
@@ -327,6 +439,18 @@ class DailyReportRepository
             ->selectRaw('daily_report_debt_payments.creditor_id, SUM(daily_report_debt_payments.amount) AS total_amount')
             ->pluck('total_amount', 'daily_report_debt_payments.creditor_id')
             ->map(fn ($value) => (float) $value)
+            ->all();
+    }
+
+    private function paymentAccounts(string $companyId, string $storeId, string $date): array
+    {
+        return DailyReportDebtPayment::query()
+            ->join('daily_reports', 'daily_reports.id', '=', 'daily_report_debt_payments.daily_report_id')
+            ->where('daily_reports.company_id', $companyId)
+            ->where('daily_reports.store_id', $storeId)
+            ->whereDate('daily_reports.report_date', $date)
+            ->whereNotNull('daily_report_debt_payments.cash_account_id')
+            ->pluck('daily_report_debt_payments.cash_account_id', 'daily_report_debt_payments.creditor_id')
             ->all();
     }
 
@@ -375,5 +499,42 @@ class DailyReportRepository
                             ->whereIn('transactions.payment_type', ['QRIS', 'CASH']);
                     });
             });
+    }
+
+    private function createExpenseItem(DailyReport $report, string $companyId, string $storeId, string $date, array $item, ?string $userId): void
+    {
+        $creditor = ! empty($item['creditor_id'])
+            ? DailyReportCreditor::where('company_id', $companyId)->where('store_id', $storeId)->findOrFail($item['creditor_id'])
+            : null;
+        $expense = Expense::create([
+            'company_id' => $companyId,
+            'store_id' => $storeId,
+            'expense_category_id' => $item['expense_category_id'],
+            'date' => $date,
+            'amount' => $item['amount'],
+            'reference' => $creditor?->name,
+            'description' => $this->expenseDescription($item),
+        ]);
+        DailyReportRestockItem::create([
+            'daily_report_id' => $report->id,
+            'creditor_id' => $creditor?->id,
+            'entry_type' => 'expense',
+            'expense_id' => $expense->id,
+            'expense_category_id' => $item['expense_category_id'],
+            'name' => $item['name'],
+            'quantity' => $item['quantity'] ?? null,
+            'unit' => $item['unit'] ?? null,
+            'amount' => $item['amount'],
+        ]);
+        if (! $creditor) {
+            $this->cash->syncExpense($expense, $item['allocations'], $userId);
+        }
+    }
+
+    private function expenseDescription(array $item): string
+    {
+        return trim(implode(' ', array_filter([
+            $item['name'], $item['quantity'] ?? null, $item['unit'] ?? null,
+        ], fn ($value) => $value !== null && $value !== '')));
     }
 }

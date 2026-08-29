@@ -12,7 +12,7 @@ class DailyReport extends Model
     protected $fillable = [
         'company_id', 'store_id', 'report_date', 'restock_creditor_id',
         'shopeefood_amount', 'grabfood_amount', 'gofood_amount',
-        'qris_amount', 'cash_amount',
+        'qris_amount', 'cash_amount', 'cash_mapping_snapshot',
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class DailyReport extends Model
         'gofood_amount' => 'decimal:2',
         'qris_amount' => 'decimal:2',
         'cash_amount' => 'decimal:2',
+        'cash_mapping_snapshot' => 'array',
     ];
 
     public function restockItems()
