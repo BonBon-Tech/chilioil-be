@@ -699,6 +699,46 @@ class DailyReportTest extends TestCase
         $this->assertDatabaseHas('daily_report_restock_items', ['name' => 'Kecap', 'amount' => 30000]);
     }
 
+    public function test_paid_expense_batch_can_reuse_the_same_account_across_items(): void
+    {
+        $token = JWTAuth::fromUser($this->admin);
+        $accounts = $this->setupCashAccounts($token, bca: 300000, mandiri: 0, cash: 0);
+        $category = ExpenseCategory::create([
+            'company_id' => $this->company->id,
+            'name' => 'Restok Bahan',
+            'code' => 'RESTOCK-PAID-BATCH',
+        ]);
+        $item = fn (string $name, int $amount) => [
+            'name' => $name,
+            'expense_category_id' => $category->id,
+            'amount' => $amount,
+            'allocations' => [[
+                'account_id' => $accounts['bca'],
+                'amount' => $amount,
+            ]],
+        ];
+
+        $this->withToken($token)->postJson('/api/v1/daily-reports/2026-08-23/expenses', [
+            'store_id' => $this->store->id,
+            'items' => [$item('Ayam', 100000), $item('Koya', 25000)],
+        ])->assertCreated()->assertJsonCount(2, 'data.expenses.items');
+
+        $this->assertEquals(175000, $this->accountBalances($token)['bca']);
+
+        $this->withToken($token)->postJson('/api/v1/daily-reports/2026-08-23/expenses', [
+            'store_id' => $this->store->id,
+            'items' => [[
+                'name' => 'Gas',
+                'expense_category_id' => $category->id,
+                'amount' => 50000,
+                'allocations' => [
+                    ['account_id' => $accounts['bca'], 'amount' => 25000],
+                    ['account_id' => $accounts['bca'], 'amount' => 25000],
+                ],
+            ]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('items.0.allocations');
+    }
+
     public function test_updating_one_daily_expense_preserves_its_siblings(): void
     {
         $token = JWTAuth::fromUser($this->admin);

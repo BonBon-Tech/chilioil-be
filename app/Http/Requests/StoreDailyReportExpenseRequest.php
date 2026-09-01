@@ -28,7 +28,7 @@ class StoreDailyReportExpenseRequest extends FormRequest
             'items.*.amount' => 'required|numeric|gt:0',
             'items.*.creditor_id' => ['nullable', 'uuid', Rule::exists('daily_report_creditors', 'id')->where('company_id', $companyId)->where('store_id', $storeId)->where('is_active', true)],
             'items.*.allocations' => 'present|array|max:20',
-            'items.*.allocations.*.account_id' => ['required', 'uuid', 'distinct', Rule::exists('cash_accounts', 'id')->where('company_id', $companyId)->where('store_id', $storeId)->where('is_active', true)],
+            'items.*.allocations.*.account_id' => ['required', 'uuid', Rule::exists('cash_accounts', 'id')->where('company_id', $companyId)->where('store_id', $storeId)->where('is_active', true)],
             'items.*.allocations.*.amount' => 'required|numeric|gt:0',
         ];
     }
@@ -39,7 +39,9 @@ class StoreDailyReportExpenseRequest extends FormRequest
             foreach ($this->input('items', []) as $index => $item) {
                 $hasCreditor = ! empty($item['creditor_id']);
                 $allocations = $item['allocations'] ?? [];
-                if ($hasCreditor && $allocations) {
+                if (count(array_column($allocations, 'account_id')) !== count(array_unique(array_column($allocations, 'account_id')))) {
+                    $validator->errors()->add("items.$index.allocations", 'Satu akun hanya boleh dipilih sekali per expense.');
+                } elseif ($hasCreditor && $allocations) {
                     $validator->errors()->add("items.$index.allocations", 'Expense utang tidak boleh memiliki sumber dana.');
                 } elseif (! $hasCreditor && ! $allocations) {
                     $validator->errors()->add("items.$index.allocations", 'Expense dibayar wajib memiliki sumber dana.');
