@@ -203,6 +203,7 @@ Route::prefix('/v1')->group(function () {
             Route::post('{date}/expenses', [DailyReportController::class, 'appendExpenses']);
             Route::put('{date}/expenses', [DailyReportController::class, 'updateExpenses']);
             Route::put('{date}/expenses/{item}', [DailyReportController::class, 'updateExpenseItem']);
+            Route::delete('{date}/expenses/{item}', [DailyReportController::class, 'destroyExpenseItem']);
             Route::put('{date}/debt', [DailyReportController::class, 'updateDebt']);
             Route::put('{date}/income', [DailyReportController::class, 'updateIncome']);
         });

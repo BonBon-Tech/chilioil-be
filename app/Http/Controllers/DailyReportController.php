@@ -262,6 +262,17 @@ class DailyReportController extends Controller
         );
     }
 
+    public function destroyExpenseItem(Request $request, string $date, string $item): JsonResponse
+    {
+        $this->ensureWriteAllowed($request, $date);
+        $storeId = $this->validatedBodyStore($request);
+
+        return ApiResponse::success(
+            $this->reports->deleteExpenseItem($request->user()->company_id, $storeId, $date, $item),
+            'Expense berhasil dihapus',
+        );
+    }
+
     public function show(Request $request, string $date): JsonResponse
     {
         $storeId = $this->validatedReadStore($request);

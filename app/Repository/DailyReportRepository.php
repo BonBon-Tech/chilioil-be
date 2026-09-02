@@ -276,6 +276,24 @@ class DailyReportRepository
         return $this->detail($companyId, $storeId, $date);
     }
 
+    public function deleteExpenseItem(string $companyId, string $storeId, string $date, string $itemId): array
+    {
+        DB::transaction(function () use ($companyId, $storeId, $date, $itemId) {
+            $report = DailyReport::where('company_id', $companyId)
+                ->where('store_id', $storeId)
+                ->whereDate('report_date', $date)
+                ->firstOrFail();
+            $item = $report->restockItems()->where('entry_type', 'expense')->findOrFail($itemId);
+            $expense = Expense::where('company_id', $companyId)->where('store_id', $storeId)->findOrFail($item->expense_id);
+
+            \App\Models\CashLedgerEntry::where('reference_type', 'expense')->where('reference_id', $expense->id)->delete();
+            $item->delete();
+            $expense->delete();
+        });
+
+        return $this->detail($companyId, $storeId, $date);
+    }
+
     public function detail(string $companyId, string $storeId, string $date): array
     {
         $report = DailyReport::with(['restockItems.creditor', 'restockItems.expenseCategory', 'restockCreditor'])

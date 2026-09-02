@@ -7,6 +7,7 @@ use App\Models\CashChannelMapping;
 use App\Models\Company;
 use App\Models\DailyReport;
 use App\Models\DailyReportCreditor;
+use App\Models\DailyReportRestockItem;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\Feature;
@@ -770,6 +771,37 @@ class DailyReportTest extends TestCase
 
         $this->assertDatabaseHas('daily_report_restock_items', ['id' => $items[0]['id'], 'name' => 'Ayam fillet', 'amount' => 225000]);
         $this->assertDatabaseHas('daily_report_restock_items', ['id' => $items[1]['id'], 'name' => 'Koya', 'amount' => 15000]);
+    }
+
+    public function test_deleting_one_daily_expense_restores_its_balance_and_preserves_siblings(): void
+    {
+        $token = JWTAuth::fromUser($this->admin);
+        $accounts = $this->setupCashAccounts($token, bca: 300000, mandiri: 0, cash: 0);
+        $category = ExpenseCategory::create([
+            'company_id' => $this->company->id,
+            'name' => 'Restok Bahan',
+            'code' => 'RESTOCK-DELETE',
+        ]);
+        $item = fn (string $name, int $amount) => [
+            'name' => $name,
+            'expense_category_id' => $category->id,
+            'amount' => $amount,
+            'allocations' => [['account_id' => $accounts['bca'], 'amount' => $amount]],
+        ];
+        $items = $this->withToken($token)->postJson('/api/v1/daily-reports/2026-08-23/expenses', [
+            'store_id' => $this->store->id,
+            'items' => [$item('Ayam', 100000), $item('Koya', 25000)],
+        ])->assertCreated()->json('data.expenses.items');
+
+        $expenseId = DailyReportRestockItem::findOrFail($items[0]['id'])->expense_id;
+        $this->withToken($token)->deleteJson('/api/v1/daily-reports/2026-08-23/expenses/'.$items[0]['id'], [
+            'store_id' => $this->store->id,
+        ])->assertOk()->assertJsonCount(1, 'data.expenses.items');
+
+        $this->assertEquals(275000, $this->accountBalances($token)['bca']);
+        $this->assertSoftDeleted('daily_report_restock_items', ['id' => $items[0]['id']]);
+        $this->assertSoftDeleted('expenses', ['id' => $expenseId]);
+        $this->assertDatabaseHas('daily_report_restock_items', ['id' => $items[1]['id'], 'name' => 'Koya']);
     }
 
     public function test_adjustment_requires_note_and_outgoing_cannot_make_balance_negative(): void
