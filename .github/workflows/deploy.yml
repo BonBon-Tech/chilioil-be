@@ -3,6 +3,11 @@ name: Deploy backend to IDCloudHost
 on:
   workflow_dispatch:
     inputs:
+      transaction_code_hotfix:
+        description: Apply only the soft-deleted transaction numbering fix
+        required: true
+        default: false
+        type: boolean
       rebuild_images:
         description: Rebuild PHP images after Dockerfile or extension changes
         required: true
@@ -23,6 +28,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Configure SSH
         env:
@@ -33,7 +40,41 @@ jobs:
           chmod 600 /home/runner/.ssh/id_ed25519
           printf '%s\n' '116.193.191.110 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEHgQ81SjEb8WQSeRIBDTS3EJQqtYha+jy0VUaiBVLFC' > /home/runner/.ssh/known_hosts
 
+      - name: Deploy transaction numbering hotfix
+        if: ${{ inputs.transaction_code_hotfix }}
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          set -euo pipefail
+          git diff HEAD^ HEAD -- app/Repository/TransactionRepository.php > /tmp/transaction-code.patch
+          test -s /tmp/transaction-code.patch
+          rsync -az -e "ssh -i /home/runner/.ssh/id_ed25519 -p $SSH_PORT" \
+            /tmp/transaction-code.patch "$SSH_USER@$SSH_HOST:/tmp/transaction-code-$GITHUB_RUN_ID.patch"
+          ssh -i /home/runner/.ssh/id_ed25519 -p "$SSH_PORT" \
+            "$SSH_USER@$SSH_HOST" "RUN_ID=$GITHUB_RUN_ID bash -se" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/apps/chilioil/chilioil-be
+          source=app/Repository/TransactionRepository.php
+          # Refuse to overwrite a different production revision.
+          echo "4a309c978ad83f3f7f8b5a56eb35be5ef68543caf6e3cffc6af4396d3538e362  $source" | sha256sum -c -
+          patch=/tmp/transaction-code-$RUN_ID.patch
+          backup=/tmp/TransactionRepository-$RUN_ID.php
+          cp "$source" "$backup"
+          rollback() { cp "$backup" "$source"; docker kill --signal=USR2 chilioil-php; }
+          trap rollback ERR
+          git apply --check "$patch"
+          git apply "$patch"
+          docker exec chilioil-php php -l "$source"
+          echo "8960e6551730d84c7e4bbd608a10aa2d429327775a8c1d7ef14951b10f5b19ed  $source" | sha256sum -c -
+          docker kill --signal=USR2 chilioil-php
+          curl --fail --silent --show-error --retry 5 --retry-connrefused https://orenpos.store/api/health
+          trap - ERR
+          REMOTE
+
       - name: Upload backend source
+        if: ${{ !inputs.transaction_code_hotfix }}
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
@@ -50,6 +91,7 @@ jobs:
             ./ "$SSH_USER@$SSH_HOST:/opt/apps/chilioil/chilioil-be/"
 
       - name: Deploy backend
+        if: ${{ !inputs.transaction_code_hotfix }}
         env:
           REBUILD_IMAGES: ${{ inputs.rebuild_images }}
           SSH_HOST: ${{ secrets.SSH_HOST }}

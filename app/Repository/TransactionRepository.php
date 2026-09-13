@@ -192,7 +192,8 @@ class TransactionRepository
         $dateFormatted = Carbon::parse($date)->format('Ymd');
 
         return DB::transaction(function () use ($dateFormatted) {
-            $lastTransaction = Transaction::whereDate('date', Carbon::parse($dateFormatted)->format('Y-m-d'))
+            // Codes are globally unique, including soft-deleted transactions.
+            $lastTransaction = Transaction::withTrashed()->whereDate('date', Carbon::parse($dateFormatted)->format('Y-m-d'))
                 ->lockForUpdate()
                 ->orderBy('id', 'desc')
                 ->first();
