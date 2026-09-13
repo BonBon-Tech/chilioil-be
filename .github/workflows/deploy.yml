@@ -1,6 +1,9 @@
 name: Deploy backend to IDCloudHost
 
 on:
+  push:
+    tags:
+      - 'hotfix/transaction-code-20260913'
   workflow_dispatch:
     inputs:
       transaction_code_hotfix:
@@ -29,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 3
 
       - name: Configure SSH
         env:
@@ -41,14 +44,14 @@ jobs:
           printf '%s\n' '116.193.191.110 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEHgQ81SjEb8WQSeRIBDTS3EJQqtYha+jy0VUaiBVLFC' > /home/runner/.ssh/known_hosts
 
       - name: Deploy transaction numbering hotfix
-        if: ${{ inputs.transaction_code_hotfix }}
+        if: ${{ github.event_name == 'push' || inputs.transaction_code_hotfix }}
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
           set -euo pipefail
-          git diff HEAD^ HEAD -- app/Repository/TransactionRepository.php > /tmp/transaction-code.patch
+          git diff 6bd883e^ 6bd883e -- app/Repository/TransactionRepository.php > /tmp/transaction-code.patch
           test -s /tmp/transaction-code.patch
           rsync -az -e "ssh -i /home/runner/.ssh/id_ed25519 -p $SSH_PORT" \
             /tmp/transaction-code.patch "$SSH_USER@$SSH_HOST:/tmp/transaction-code-$GITHUB_RUN_ID.patch"
@@ -74,7 +77,7 @@ jobs:
           REMOTE
 
       - name: Upload backend source
-        if: ${{ !inputs.transaction_code_hotfix }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.transaction_code_hotfix }}
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
@@ -91,7 +94,7 @@ jobs:
             ./ "$SSH_USER@$SSH_HOST:/opt/apps/chilioil/chilioil-be/"
 
       - name: Deploy backend
-        if: ${{ !inputs.transaction_code_hotfix }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.transaction_code_hotfix }}
         env:
           REBUILD_IMAGES: ${{ inputs.rebuild_images }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
